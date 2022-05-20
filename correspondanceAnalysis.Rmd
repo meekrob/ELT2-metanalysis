@@ -1,0 +1,144 @@
+---
+title: "Correspondence Analysis"
+author: "David C. King"
+date: "4/5/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(factoextra)
+library(ggplot2)
+library(ade4)
+library(tidyr)
+library(dplyr)
+library(GenomicRanges)
+#install.packages("devtools")
+#devtools::install_github("meekrob/ParasiteXML") # Brings biomaRt, GenomicRanges
+library(ParasiteXML)
+source('david-reader.R')
+```
+
+```{r read-data}
+elt2.data = read_ELT2_binding_data(as_genomic_ranges = FALSE)
+intestine = read_rob_all_merged() %>% dplyr::select(-starts_with("pvalue."),-starts_with("lfcSE."))
+elt2.intestine = inner_join(intestine, elt2.data, by = "WBGeneID")
+```
+
+```{r query-promoters-or-read-saved}
+# Promoters
+PROMOTERS_RDS_PATH = file.path("bioMart_saved_queries", "promoters.rds")
+
+if (! file.exists(PROMOTERS_RDS_PATH)) {
+  library(biomaRt)
+  mart = getParamart()
+  
+  promoters = getCElegansPromoters(mart, upstream = UPSTREAM, downstream = DOWNSTREAM) 
+  promoters = trim(sort(promoters, ignore.strand=T)) # trim because one interval is chrIV:-359-840 at -1000/+200
+  
+  saveRDS(promoters, PROMOTERS_RDS_PATH)
+}else { 
+  message("Using saved promoter query.")
+  promoters = readRDS(PROMOTERS_RDS_PATH)
+}
+
+```
+
+
+```{r read-all-modENCODE-binding-sites}
+allBindingSites = read.table('all.modENCODE.binding.bed')
+header = read.table('all.modENCODE.binding.bed', nrows = 1, comment.char = "")
+header[1] <- 'chrom'
+colnames(allBindingSites) <- header
+allBindingSites[1:5,1:20]
+gr.bindingsites = makeGRangesFromDataFrame(allBindingSites, keep.extra.columns = T)
+```
+
+```{r binding-sites-to-promoters}
+olap = findOverlaps(promoters, gr.bindingsites, ignore.strand=T,minoverlap = 100)
+gr.bindingsites$WBGeneID = NA # must create a blank column first
+gr.bindingsites[to(olap)]$WBGeneID = promoters[from(olap)]$wbps_gene_id
+gr.promoter.bindingsites = gr.bindingsites[ !is.na(gr.bindingsites$WBGeneID)]
+length(gr.promoter.bindingsites)
+```
+
+
+
+```{r big-data}
+promoter.bindingsites = mcols(gr.promoter.bindingsites)
+bigDF = right_join(elt2.intestine, promoter.bindingsites, by = "WBGeneID",copy=T)
+# NOTE: copy=T is required by:
+# Error in `auto_copy()`:
+# ! `x` and `y` must share the same src.
+# ℹ set `copy` = TRUE (may be slow).
+# Backtrace:
+#  1. dplyr::left_join(elt2.intestine, promoter.bindingsites, by = "WBGeneID")
+#  2. dplyr:::left_join.data.frame(...)
+#  3. dplyr::auto_copy(x, y, copy = copy)
+
+bigDF.din = bigDF %>% filter(!is.na(din.status)) %>% select(din.status.description, embryo_int_exp, L1_int_exp, L3_int_exp, LE_bound:ZTF.7) %>% select(-i, -score, -.)
+
+bigDF.din[is.na(bigDF.din)] <- "ftr"
+```
+
+
+```{r aggregation}
+x = bigDF.din %>% filter(embryo_int_exp != 'ftr' & L1_int_exp != 'ftr' & L3_int_exp != 'ftr')
+agg1 = stats::aggregate(x %>% select(LE_bound:ZTF.7), 
+                       by=list(dineen.status=x[[1]]),
+                       FUN=sum)
+rownames(agg1) <- agg1[[1]]
+agg1 = agg1[,-1]
+
+write.table(agg1, "CA.tab", quote=F)
+
+agg2 = stats::aggregate(x %>% select(LE_bound:ZTF.7), 
+                       by=list(embryo.int.status=x$embryo_int_exp),
+                       FUN=sum)
+rownames(agg2) <- paste("embryo", agg2[[1]], sep=".")
+agg2 = agg2[,-1]
+
+agg3 = stats::aggregate(x %>% select(LE_bound:ZTF.7), 
+                       by=list(L1.int.status=x$L1_int_exp),
+                       FUN=sum)
+rownames(agg3) <- paste("L1", agg3[[1]], sep=".")
+agg3 = agg3[,-1]
+
+agg4 = stats::aggregate(x %>% select(LE_bound:ZTF.7), 
+                       by=list(L3.int.status=x$L3_int_exp),
+                       FUN=sum)   
+rownames(agg4) <- paste("L3", agg4[[1]], sep=".")
+agg4 = agg4[,-1]
+
+agg = rbind(agg1,agg2,agg3,agg4)
+                             
+agg.ca = dudi.coa(agg1, scannf=FALSE, nf=2)
+fviz_ca_biplot(agg.ca,repel=TRUE,col.col="brown", col.row="purple", arrows=c(T,F), max.overlaps=70) +
+ggtitle("Correspondance Analysis",) + ylim(c(-0.5,0.5)) 
+
+ggsave("CO_biplot.pdf", width=15, height=20)
+
+agg1.70 = agg1[,which(colSums(agg1)>=69)]
+fviz_ca_biplot(agg.ca,repel=TRUE,col.col="brown", col.row="purple", arrows=c(T,F)) +
+    ggtitle("Correspondance Analysis (69 or more total counts)") + ylim(c(-0.5,0.5)) #+ xlim(c(-.3,.6))
+```
+
+```{r look-at-resids}
+n = sum(agg1)
+p = agg1/n
+column.masses = colSums(p)
+row.masses = rowSums(p)
+E = row.masses %o% column.masses
+R = p - E
+I = R / E
+is_finite = is.finite(unlist(I[1,]))
+pdf("CA_indexed_residuals.pdf", width=10, height=12)
+pheatmap(t(I[,is_finite]))
+dev.off()
+```
+
+
+```{r pheatmap}
+
+pheatmap(t(agg1.70[,-3]))
+```

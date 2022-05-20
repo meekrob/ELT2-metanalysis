@@ -1,0 +1,490 @@
+---
+title: "Machine Learning"
+author: "David C. King"
+date: "5/8/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+pkgs <- c(
+  "AmesHousing",
+  "AppliedPredictiveModeling",
+  "bookdown",
+  "broom",
+  "caret",
+  "caretEnsemble",
+  "cluster",
+  "cowplot",
+  "DALEX",
+  "data.table",
+  "doParallel",
+  "dplyr",
+  "dslabs",
+  "e1071",
+  "earth",
+# "emo", # devtools::install_github("hadley/emo")
+#"extracat",# devtools::install_github("heike/extracat")
+  "factoextra",
+  "foreach",
+  "forecast",
+  "ggbeeswarm",
+  "ggmap",
+  "ggplot2",
+  "ggplotify",
+  "gbm",
+  "glmnet",
+  "gridExtra",
+  "h2o",
+  "HDclassif",
+  "iml",
+  "ipred",
+  "kableExtra",
+  "keras",
+  "kernlab",
+  "knitr",
+  "lime",
+  "markdown",
+  "MASS",
+  "Matrix",
+  "mclust",
+  "mlbench",
+  "modeldata",
+  "NbClust",
+  "pBrackets",
+  "pcadapt",
+  "pdp",
+  "plotROC",
+  "pls",
+  "pROC",
+  "purrr",
+  "ranger",
+  "readr",
+  "recipes",
+  "reshape2",
+  "ROCR",
+  "rpart",
+  "rpart.plot",
+  "rsample",
+  "scales",
+  "sparsepca",
+  "stringr",
+  "subsemble",
+  "SuperLearner",
+  "tfruns",
+  "tfestimators",
+  "tidyr",
+  "vip",
+  "visdat",
+  "xgboost",
+  "yardstick"
+)
+
+for (pkg in pkgs) {
+  if (!require(pkg, character.only = T, quietly=T)) {
+    cat(pkg)
+    install.packages(pkg)}
+}
+```
+
+# https://bradleyboehmke.github.io/HOML/intro.html
+
+## Ames Housing Data
+
+Property sales information as described in De Cock (2011).
+ - problem type: supervised regression
+ - response variable: Sale_Price (i.e., $195,000, $215,000)
+ - features: 80
+ - observations: 2,930
+ - objective: use property attributes to predict the sale price of a home
+ - access: provided by the AmesHousing package (Kuhn 2017a)
+
+more details: See ?AmesHousing::ames_raw
+
+```{r Ames}
+
+# access data
+ames <- AmesHousing::make_ames()
+
+# initial dimension
+dim(ames)
+## [1] 2930   81
+
+# response variable
+head(ames$Sale_Price)
+## [1] 215000 105000 172000 244000 189900 195500
+
+```
+
+### Note:
+
+You can see the entire data cleaning process to transform the raw Ames housing data (AmesHousing::ames_raw) to the final clean data (AmesHousing::make_ames) that we will use in machine learning algorithms throughout this book by typing AmesHousing::make_ames into the R console.
+
+## Datasets
+
+
+Employee attrition information originally provided by IBM Watson Analytics Lab.
+ - problem type: supervised binomial classification
+ - response variable: Attrition (i.e., “Yes”, “No”)
+ - features: 30
+ - observations: 1,470
+ - objective: use employee attributes to predict if they will attrit (leave the company)
+ - access: provided by the rsample package (Kuhn and Wickham 2019)
+
+more details: See ?rsample::attrition
+
+```{r data-attrition}
+# These data are now in the modeldata package.
+# access data
+#attrition <- rsample::attrition
+library(modeldata)
+data(attrition)
+
+# initial dimension
+dim(attrition)
+## [1] 1470   31
+
+# response variable
+head(attrition$Attrition)
+## [1] Yes No  Yes No  No  No 
+## Levels: No Yes
+```
+
+Image information for handwritten numbers originally presented to AT&T Bell Lab’s to help build automatic mail-sorting machines for the USPS. Has been used since early 1990s to compare machine learning performance on pattern recognition (i.e., LeCun et al. (1990); LeCun et al. (1998); Cireşan, Meier, and Schmidhuber (2012)).
+Problem type: supervised multinomial classification
+response variable: V785 (i.e., numbers to predict: 0, 1, …, 9)
+features: 784
+observations: 60,000 (train) / 10,000 (test)
+objective: use attributes about the “darkness” of each of the 784 pixels in images of handwritten numbers to predict if the number is 0, 1, …, or 9.
+access: provided by the dslabs package (Irizarry 2018)
+more details: See ?dslabs::read_mnist() and online MNIST documentation
+
+```{r data-mnist}
+#access data
+mnist <- dslabs::read_mnist()
+names(mnist)
+## [1] "train" "test"
+
+# initial feature dimensions
+dim(mnist$train$images)
+## [1] 60000   784
+
+# response variable
+head(mnist$train$labels)
+## [1] 5 0 4 1 9 2
+```
+
+```{r data-grocery}
+# URL to download/read in the data
+url <- "https://koalaverse.github.io/homlr/data/my_basket.csv"
+
+# Access data
+my_basket <- readr::read_csv(url)
+
+# Print dimensions
+dim(my_basket)
+## [1] 2000   42
+
+# Peek at response variable
+my_basket
+## # A tibble: 2,000 x 42
+##    `7up` lasagna pepsi   yop red.wine cheese   bbq bulmers mayonnaise
+##    <dbl>   <dbl> <dbl> <dbl>    <dbl>  <dbl> <dbl>   <dbl>      <dbl>
+##  1     0       0     0     0        0      0     0       0          0
+##  2     0       0     0     0        0      0     0       0          0
+##  3     0       0     0     0        0      0     0       0          0
+##  4     0       0     0     2        1      0     0       0          0
+##  5     0       0     0     0        0      0     0       2          0
+##  6     0       0     0     0        0      0     0       0          0
+##  7     1       1     0     0        0      0     1       0          0
+##  8     0       0     0     0        0      0     0       0          0
+##  9     0       1     0     0        0      0     0       0          0
+## 10     0       0     0     0        0      0     0       0          0
+## # … with 1,990 more rows, and 33 more variables: horlics <dbl>,
+## #   chicken.tikka <dbl>, milk <dbl>, mars <dbl>, coke <dbl>,
+## #   lottery <dbl>, bread <dbl>, pizza <dbl>, sunny.delight <dbl>,
+## #   ham <dbl>, lettuce <dbl>, kronenbourg <dbl>, leeks <dbl>, fanta <dbl>,
+## #   tea <dbl>, whiskey <dbl>, peas <dbl>, newspaper <dbl>, muesli <dbl>,
+## #   white.wine <dbl>, carrots <dbl>, spinach <dbl>, pate <dbl>,
+## #   instant.coffee <dbl>, twix <dbl>, potatoes <dbl>, fosters <dbl>,
+## #   soup <dbl>, toad.in.hole <dbl>, coco.pops <dbl>, kitkat <dbl>,
+## #   broccoli <dbl>, cigarettes <dbl>
+```
+
+## Modeling Process
+```{r Prerequisites}
+# h2o set-up 
+h2o.no_progress()  # turn off h2o progress bars
+
+# have to do the following in the terminal:
+# java -jar /Library/Frameworks/R.framework/Versions/4.1/Resources/library/h2o/java/h2o.jar
+h2o.init()         # launch h2o
+
+# Ames housing data
+ames <- AmesHousing::make_ames()
+ames.h2o <- as.h2o(ames)
+
+# Job attrition data is now in modeldata, so just do:
+# data(attrition)
+#churn <- rsample::attrition %>% 
+churn <- attrition %>% 
+  mutate_if(is.ordered, .funs = factor, ordered = FALSE)
+churn.h2o <- as.h2o(churn)
+```
+
+## Data splitting
+
+A major goal of the machine learning process is to find an algorithm  
+f
+(
+X
+)
+  that most accurately predicts future values ( 
+^
+Y
+ ) based on a set of features ( 
+X
+ ). In other words, we want an algorithm that not only fits well to our past data, but more importantly, one that predicts a future outcome accurately. This is called the generalizability of our algorithm. How we “spend” our data will help us understand how well our algorithm generalizes to unseen data.
+
+To provide an accurate understanding of the generalizability of our final optimal model, we can split our data into training and test data sets:
+
+Training set: these data are used to develop feature sets, train our algorithms, tune hyperparameters, compare models, and all of the other activities required to choose a final model (e.g., the model we want to put into production).
+Test set: having chosen a final model, these data are used to estimate an unbiased assessment of the model’s performance, which we refer to as the generalization error.
+It is critical that the test set not be used prior to selecting your final model. Assessing results on the test set prior to final model selection biases the model selection process since the testing data will have become part of the model development process.
+
+Splitting data into training and test sets.
+Figure 2.2: Splitting data into training and test sets.
+
+Given a fixed amount of data, typical recommendations for splitting your data into training-test splits include 60% (training)–40% (testing), 70%–30%, or 80%–20%. Generally speaking, these are appropriate guidelines to follow; however, it is good to keep the following points in mind:
+
+Spending too much in training (e.g.,  >80%) won’t allow us to get a good assessment of predictive performance. We may find a model that fits the training data very well, but is not generalizable (overfitting).
+Sometimes too much spent in testing ( >40%) won’t allow us to get a good assessment of model parameters.
+Other factors should also influence the allocation proportions. For example, very large training sets (e.g.,  
+n>100K) often result in only marginal gains compared to smaller sample sizes. Consequently, you may use a smaller training sample to increase computation speed (e.g., models built on larger training sets often take longer to score new data sets in production). In contrast, as  p≥n
+(where p represents the number of features), larger samples sizes are often required to identify consistent signals in the features.
+
+The two most common ways of splitting data include simple random sampling and stratified sampling.
+
+### Simple Random Sampling
+
+The simplest way to split the data into training and test sets is to take a simple random sample. This does not control for any data attributes, such as the distribution of your response variable ( 
+Y
+ ). There are multiple ways to split our data in R. Here we show four options to produce a 70–30 split in the Ames housing data:
+
+```{r simple-random-sampling}
+# Using base R
+set.seed(123)  # for reproducibility
+index_1 <- sample(1:nrow(ames), round(nrow(ames) * 0.7))
+train_1 <- ames[index_1, ]
+test_1  <- ames[-index_1, ]
+
+forplotting = data.frame(Sale_Price=train_1$Sale_Price, method="base R", set="train") %>% rbind( data.frame(Sale_Price=test_1$Sale_Price, method="base R", set="test")) 
+
+# Using caret package
+set.seed(123)  # for reproducibility
+index_2 <- createDataPartition(ames$Sale_Price, p = 0.7, 
+                               list = FALSE)
+train_2 <- ames[index_2, ]
+test_2  <- ames[-index_2, ]
+
+forplotting = data.frame(Sale_Price=train_2$Sale_Price, method="caret", set="train") %>% rbind( data.frame(Sale_Price=test_2$Sale_Price, method="caret", set="test")) %>% rbind(forplotting)
+
+# Using rsample package
+set.seed(123)  # for reproducibility
+split_1  <- initial_split(ames, prop = 0.7)
+train_3  <- training(split_1)
+test_3   <- testing(split_1)
+
+forplotting = data.frame(Sale_Price=train_3$Sale_Price, method="rsample", set="train") %>% rbind( data.frame(Sale_Price=test_3$Sale_Price, method="rsample", set="test")) %>% rbind(forplotting)
+
+# Using h2o package
+split_2 <- h2o.splitFrame(ames.h2o, ratios = 0.7, 
+                          seed = 123)
+train_4 <- split_2[[1]]
+test_4  <- split_2[[2]]
+
+# accessers don't work for h2o object
+# Error in read.table(file = file, header = header, sep = sep, quote = ,  : unused argument (optional = TRUE)
+
+forplotting = data.frame(Sale_Price=as.vector(train_4$Sale_Price), method="h2o", set="train") %>% rbind( data.frame(Sale_Price=as.vector(test_4$Sale_Price), method="h2o", set="test")) %>% rbind(forplotting)
+
+ggplot(forplotting, aes(x=Sale_Price, color=set)) + geom_density() + facet_wrap(~method)
+```
+### Stratified Sampling
+
+If we want to explicitly control the sampling so that our training and test sets have similar  
+Y
+  distributions, we can use stratified sampling. This is more common with classification problems where the response variable may be severely imbalanced (e.g., 90% of observations with response “Yes” and 10% with response “No”). However, we can also apply stratified sampling to regression problems for data sets that have a small sample size and where the response variable deviates strongly from normality (i.e., positively skewed like Sale_Price). With a continuous response variable, stratified sampling will segment  
+Y
+  into quantiles and randomly sample from each. Consequently, this will help ensure a balanced representation of the response distribution in both the training and test sets.
+
+The easiest way to perform stratified sampling on a response variable is to use the rsample package, where you specify the response variable to stratify. The following illustrates that in our original employee attrition data we have an imbalanced response (No: 84%, Yes: 16%). By enforcing stratified sampling, both our training and testing sets have approximately equal response distributions.
+
+```{r stratified-sampling}
+# original response distribution
+table(churn$Attrition) %>% proportions()
+## 
+##        No       Yes 
+## 0.8387755 0.1612245
+
+# stratified sampling with the rsample package
+set.seed(123)
+split_strat  <- initial_split(churn, prop = 0.7, 
+                              strata = "Attrition")
+train_strat  <- training(split_strat)
+test_strat   <- testing(split_strat)
+
+# consistent response ratio between train & test
+table(train_strat$Attrition) %>% proportions()
+## 
+##       No      Yes 
+## 0.838835 0.161165
+table(test_strat$Attrition) %>% proportions()
+## 
+##        No       Yes 
+## 0.8386364 0.1613636
+```
+
+### 2.2.3 Class Imbalances
+
+Imbalanced data can have a significant impact on model predictions and performance (Kuhn and Johnson 2013). Most often this involves classification problems where one class has a very small proportion of observations (e.g., defaults - 5% versus nondefaults - 95%). Several sampling methods have been developed to help remedy class imbalance and most of them can be categorized as either up-sampling or down-sampling.
+
+Down-sampling balances the dataset by reducing the size of the abundant class(es) to match the frequencies in the least prevalent class. This method is used when the quantity of data is sufficient. By keeping all samples in the rare class and randomly selecting an equal number of samples in the abundant class, a balanced new dataset can be retrieved for further modeling. Furthermore, the reduced sample size reduces the computation burden imposed by further steps in the ML process.
+
+On the contrary, up-sampling is used when the quantity of data is insufficient. It tries to balance the dataset by increasing the size of rarer samples. Rather than getting rid of abundant samples, new rare samples are generated by using repetition or bootstrapping (described further in Section 2.4.2).
+
+Note that there is no absolute advantage of one sampling method over another. Application of these two methods depends on the use case it applies to and the data set itself. A combination of over- and under-sampling is often successful and a common approach is known as Synthetic Minority Over-Sampling Technique, or SMOTE (Chawla et al. 2002). This alternative sampling approach, as well as others, can be implemented in R (see the sampling argument in `?caret::trainControl()`). Furthermore, many ML algorithms implemented in R have class weighting schemes to remedy imbalances internally (e.g., most h2o algorithms have a weights_column and balance_classes argument).
+
+```{r stratified-sampling-ames}
+
+# Stratified sampling with the rsample package
+set.seed(123)
+split <- initial_split(ames, prop = 0.7, 
+                       strata = "Sale_Price")
+ames_train  <- training(split)
+ames_test   <- testing(split)
+```
+
+Next, we’re going to apply a k-nearest neighbor regressor to our data. To do so, we’ll use caret, which is a meta-engine to simplify the resampling, grid search, and model application processes. The following defines:
+
+ * Resampling method: we use 10-fold CV repeated 5 times.
+ * Grid search: we specify the hyperparameter values to assess (k=2,3,4,…,25).
+ * Model training & Validation: we train a k-nearest neighbor (`method = "knn"`) model using our pre-specified resampling procedure (`trControl = cv`), grid search (`tuneGrid = hyper_grid`), and preferred loss function (`metric = "RMSE"`).
+ 
+```{r grid-search}
+# Specify resampling strategy
+cv <- trainControl(
+  method = "repeatedcv", 
+  number = 10, 
+  repeats = 5
+)
+
+# Create grid of hyperparameter values
+hyper_grid <- expand.grid(k = seq(2, 25, by = 1))
+
+# Tune a knn model using grid search
+knn_fit <- caret::train(
+  Sale_Price ~ ., 
+  data = ames_train, 
+  method = "knn", 
+  trControl = cv, 
+  tuneGrid = hyper_grid,
+  metric = "RMSE"
+)
+```
+
+```{r knn_fit}
+knn_fit
+ggplot(knn_fit)
+
+```
+
+# Feature and Target Engineering
+
+```{r log-transformation}
+
+# non-log
+nonlog.ames = lm(Sale_Price ~ Year_Built, data=ames)
+# log-transform the Y
+log.ames = lm(log(Sale_Price) ~ Year_Built, data=ames)
+
+residuals.ames = data.frame(residuals=nonlog.ames$residuals,transformation="none")
+residuals.ames = rbind(residuals.ames, data.frame(residuals=log.ames$residuals,transformation="log"))
+
+# Box-cox transformation
+bc.ames = MASS::boxcox(nonlog.ames) # run on original model
+lambda <- bc.ames$x[which.max(bc.ames$y)]
+boxcox.ames = lm((Sale_Price^lambda-1)/lambda ~ Year_Built, data=ames)
+
+hist1 = ggplot(data.frame(residuals=nonlog.ames$residuals), aes(residuals)) + geom_histogram(bins=100) 
+
+hist2 = ggplot(data.frame(residuals=log.ames$residuals), aes(residuals)) + geom_histogram(bins=100) 
+
+hist3 = ggplot(data.frame(residuals=boxcox.ames$residuals), aes(residuals)) + geom_histogram(bins=100) 
+
+cowplot::plot_grid(hist1,hist2,hist3,labels=c("No log", "Log", "BoxCox"))
+
+qq1 = ggqqplot(nonlog.ames$residuals) + ylab("residuals")
+qq2 = ggqqplot(log.ames$residuals) + ylab("residuals")
+qq3 = ggqqplot(boxcox.ames$residuals) + ylab("residuals")
+
+cowplot::plot_grid(qq1,qq2,qq3, labels=c("No log", "Log", "BoxCox"))
+```
+
+```{r missingness}
+AmesHousing::ames_raw %>%
+  is.na() %>%
+  reshape2::melt() %>%
+  ggplot(aes(Var2, Var1, fill=value)) + 
+    geom_raster() + 
+    coord_flip() +
+    scale_y_continuous(NULL, expand = c(0, 0)) +
+    scale_fill_grey(name = "", 
+                    labels = c("Present", 
+                               "Missing")) +
+    xlab("Observation") +
+    theme(axis.text.y  = element_text(size = 4))
+
+vis_miss(AmesHousing::ames_raw, cluster = TRUE)
+```
+Digging a little deeper into these variables, we might notice that Garage_Cars and Garage_Area contain the value 0 whenever the other Garage_xx variables have missing values (i.e. a value of NA). This might be because they did not have a way to identify houses with no garages when the data were originally collected, and therefore, all houses with no garage were identified by including nothing. Since this missingness is informative, it would be appropriate to impute NA with a new category level (e.g., "None") for these garage variables. Circumstances like this tend to only become apparent upon careful descriptive and visual examination of the data!
+
+```{r merge-very-low-count-categories}
+
+
+table(ames_train$Neighborhood) %>% proportions %>% as.data.frame() %>% filter(Freq > .01)
+
+
+# just messing around here with clustering instead of "othering"
+k.last = kmeans(ames_train$Screen_Porch,centers = 3) 
+# ranges covered by each cluster
+data.frame(x=ames_train$Screen_Porch, k= k.last$cluster) %>% group_by(k) %>% summarize(lower=min(x),upper=max(x),n=length(x))
+# values represented
+lapply(split(ames_train$Screen_Porch, k.last$cluster), table)
+
+# Ultimately the zeroes dominate, so why break down a small class even further?
+table(ames_train$Screen_Porch == 0)
+# 
+# FALSE  TRUE 
+#   180  1869 
+table(ames_train$Screen_Porch == 0) %>% proportions
+# 
+#      FALSE       TRUE 
+# 0.08784773 0.91215227 
+
+# Lump levels for two features
+lumping <- recipe(Sale_Price ~ ., data = ames_train) %>%
+  step_other(Neighborhood, threshold = 0.01, 
+             other = "other") %>%
+  step_other(Screen_Porch, threshold = 0.1, 
+             other = ">0")
+
+
+# Apply this blue print --> you will learn about this at 
+# the end of the chapter
+apply_2_training <- prep(lumping, training = ames_train) %>%
+  bake(ames_train)
+
+table(apply_2_training$Screen_Porch)
+table(apply_2_training$Neighborhood)
+```
