@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+# might need to update rlang for rsample
 pkgs <- c(
   "AmesHousing",
   "AppliedPredictiveModeling",
@@ -23,8 +24,8 @@ pkgs <- c(
   "dslabs",
   "e1071",
   "earth",
-# "emo", # devtools::install_github("hadley/emo")
-#"extracat",# devtools::install_github("heike/extracat")
+  "emo", # devtools::install_github("hadley/emo")
+  "extracat",# devtools::install_github("heike/extracat")
   "factoextra",
   "foreach",
   "forecast",
@@ -32,6 +33,7 @@ pkgs <- c(
   "ggmap",
   "ggplot2",
   "ggplotify",
+  "ggpubr",
   "gbm",
   "glmnet",
   "gridExtra",
@@ -83,7 +85,8 @@ pkgs <- c(
 for (pkg in pkgs) {
   if (!require(pkg, character.only = T, quietly=T)) {
     cat(pkg)
-    install.packages(pkg)}
+    #install.packages(pkg) # let RStudio detect the missing packages and prompt to install
+    }
 }
 ```
 
@@ -402,7 +405,7 @@ ggplot(knn_fit)
 # Feature and Target Engineering
 
 ```{r log-transformation}
-
+library(visdat)
 # non-log
 nonlog.ames = lm(Sale_Price ~ Year_Built, data=ames)
 # log-transform the Y
