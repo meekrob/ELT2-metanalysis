@@ -16,16 +16,21 @@ library(GenomicRanges)
 #install.packages("devtools")
 #devtools::install_github("meekrob/ParasiteXML") # Brings biomaRt, GenomicRanges
 library(ParasiteXML)
+bcd=getwd()
+setwd('/Users/david/work/ELT-2-ChIP-revision/David/01_promoters/02_scripts')
 source('david-reader.R')
+setwd(bcd)
 ```
 
 ```{r read-data}
+setwd('/Users/david/work/ELT-2-ChIP-revision/David/01_promoters/02_scripts')
 elt2.data = read_ELT2_binding_data(as_genomic_ranges = FALSE)
 intestine = read_rob_all_merged() %>% dplyr::select(-starts_with("pvalue."),-starts_with("lfcSE."))
 elt2.intestine = inner_join(intestine, elt2.data, by = "WBGeneID")
 ```
 
 ```{r query-promoters-or-read-saved}
+setwd('/Users/david/work/ELT-2-ChIP-revision/David/01_promoters/02_scripts')
 # Promoters
 PROMOTERS_RDS_PATH = file.path("bioMart_saved_queries", "promoters.rds")
 
@@ -46,6 +51,7 @@ if (! file.exists(PROMOTERS_RDS_PATH)) {
 
 
 ```{r read-all-modENCODE-binding-sites}
+setwd('/Users/david/work/ELT-2-ChIP-revision/David/01_promoters/02_scripts')
 allBindingSites = read.table('all.modENCODE.binding.bed')
 header = read.table('all.modENCODE.binding.bed', nrows = 1, comment.char = "")
 header[1] <- 'chrom'
@@ -76,14 +82,15 @@ bigDF = right_join(elt2.intestine, promoter.bindingsites, by = "WBGeneID",copy=T
 #  2. dplyr:::left_join.data.frame(...)
 #  3. dplyr::auto_copy(x, y, copy = copy)
 
-bigDF.din = bigDF %>% filter(!is.na(din.status)) %>% select(din.status.description, embryo_int_exp, L1_int_exp, L3_int_exp, LE_bound:ZTF.7) %>% select(-i, -score, -.)
+bigDF.din = bigDF %>% filter(!is.na(din.status)) %>% select(din.status.description, embryo_int_exp, L1_int_exp, L3_int_exp, LE_bound:ZTF.7) %>% select(-i, -score, -., -core.start, -core.end)
 
 bigDF.din[is.na(bigDF.din)] <- "ftr"
 ```
 
 
 ```{r aggregation}
-x = bigDF.din %>% filter(embryo_int_exp != 'ftr' & L1_int_exp != 'ftr' & L3_int_exp != 'ftr')
+#x = bigDF.din %>% filter(embryo_int_exp != 'ftr' & L1_int_exp != 'ftr' & L3_int_exp != 'ftr')
+x = bigDF.din %>% filter(embryo_int_exp == 'enriched' & L1_int_exp == 'enriched')
 agg1 = stats::aggregate(x %>% select(LE_bound:ZTF.7), 
                        by=list(dineen.status=x[[1]]),
                        FUN=sum)
@@ -116,11 +123,14 @@ agg.ca = dudi.coa(agg1, scannf=FALSE, nf=2)
 fviz_ca_biplot(agg.ca,repel=TRUE,col.col="brown", col.row="purple", arrows=c(T,F), max.overlaps=70) +
 ggtitle("Correspondance Analysis",) + ylim(c(-0.5,0.5)) 
 
-ggsave("CO_biplot.pdf", width=15, height=20)
+ggsave("CO_biplot.LEL1.enrichedonly.pdf", width=15, height=20)
 
-agg1.70 = agg1[,which(colSums(agg1)>=69)]
+threshold=100
+agg1.highercounts = agg1[,which(colSums(agg1)>=threshold)]
+agg.ca = dudi.coa(agg1.highercounts, scannf=FALSE, nf=2)
 fviz_ca_biplot(agg.ca,repel=TRUE,col.col="brown", col.row="purple", arrows=c(T,F)) +
-    ggtitle("Correspondance Analysis (69 or more total counts)") + ylim(c(-0.5,0.5)) #+ xlim(c(-.3,.6))
+    ggtitle(sprintf("Correspondance Analysis (%d or more total counts)",threshold)) + ylim(c(-0.5,0.5)) #+ xlim(c(-.3,.6))
+ggsave(sprintf("CO_biplot.LEL1.enrichedonly.%d.pdf", threshold), width=15, height=20)
 ```
 
 ```{r look-at-resids}

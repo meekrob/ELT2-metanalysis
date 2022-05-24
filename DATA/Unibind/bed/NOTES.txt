@@ -1,0 +1,10 @@
+Scripts to organize this directory:
+    makelinks.bash - link everything in all/ to a corresponding directory with the developmental stage indicated in the filename. remove that string from the linked filename
+    rename_dirs.bash - take out the repeated 'Whole_worms_developmental_stage_' from the dirnames
+The following takes care of the rest.
+     mv Whole_worms_mix_stage_culture mix_stage_culture
+     mv Whole_worms_mixed-stage_embryos mixed-stage_embryos
+     mv Whole_wormsdevelomental_stage_day_4_young_adult day_4_young_adult
+All files are whole worm except :
+    Young_adults_germline_tissue
+    Young_adults_somatic_cells
