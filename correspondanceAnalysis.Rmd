@@ -5,6 +5,16 @@ date: "4/5/2022"
 output: html_document
 ---
 
+Various references:
+
+The procedure and its calculation:
+
+https://www.displayr.com/math-correspondence-analysis/
+
+Using count data:
+
+https://stats.stackexchange.com/questions/68938/multiple-correspondence-analysis-for-count-data-entered-as-binary-variables
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(factoextra)
@@ -121,14 +131,32 @@ agg = rbind(agg1,agg2,agg3,agg4)
                              
 agg.ca = dudi.coa(agg1, scannf=FALSE, nf=2)
 fviz_ca_biplot(agg.ca,repel=TRUE,col.col="brown", col.row="purple", arrows=c(T,F), max.overlaps=70) +
-ggtitle("Correspondance Analysis",) + ylim(c(-0.5,0.5)) 
+ggtitle("Correspondance Analysis",) + #ylim(c(-0.5,0.5)) +
+  geom_point(inherit.aes=FALSE,
+             data=data.frame(x=c(0.06213413,0.2072243),
+                             y=c(-0.1359036,-0.3136792)),
+             aes(x=x,y=y))
+
+# the highest score for up_ELT2_minus
+# is shared by these four hits who bind once apiece in two up_ELT2_minus gene
+agg1[,c('CEH.9','MML.1', 'FKH.2','NHR.67')]
+#                      CEH.9 MML.1 FKH.2 NHR.67
+# down_ELT2_minus          0     0     0      0
+# unchanged_ELT2_minus     0     0     0      0
+# up_ELT2_minus            1     1     1      1
+x %>% filter(CEH.9 > 0 | MML.1 > 0 | FKH.2 > 0 | NHR.67 > 0) # get the gene name on here
 
 ggsave("CO_biplot.LEL1.enrichedonly.pdf", width=15, height=20)
 
+# compute the dot product between points and vectors
+scores = as.matrix(agg.ca$co) %*% t(as.matrix(agg.ca$li))
+
+
+
 threshold=100
 agg1.highercounts = agg1[,which(colSums(agg1)>=threshold)]
-agg.ca = dudi.coa(agg1.highercounts, scannf=FALSE, nf=2)
-fviz_ca_biplot(agg.ca,repel=TRUE,col.col="brown", col.row="purple", arrows=c(T,F)) +
+agg.ca.highercounts = dudi.coa(agg1.highercounts, scannf=FALSE, nf=2)
+fviz_ca_biplot(agg.ca.highercounts,repel=TRUE,col.col="brown", col.row="purple", arrows=c(T,F)) +
     ggtitle(sprintf("Correspondance Analysis (%d or more total counts)",threshold)) + ylim(c(-0.5,0.5)) #+ xlim(c(-.3,.6))
 ggsave(sprintf("CO_biplot.LEL1.enrichedonly.%d.pdf", threshold), width=15, height=20)
 ```
