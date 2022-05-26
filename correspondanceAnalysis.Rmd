@@ -61,7 +61,6 @@ if (! file.exists(PROMOTERS_RDS_PATH)) {
 
 
 ```{r read-all-modENCODE-binding-sites}
-setwd('/Users/david/work/ELT-2-ChIP-revision/David/01_promoters/02_scripts')
 allBindingSites = read.table('all.modENCODE.binding.bed')
 header = read.table('all.modENCODE.binding.bed', nrows = 1, comment.char = "")
 header[1] <- 'chrom'
@@ -71,7 +70,7 @@ gr.bindingsites = makeGRangesFromDataFrame(allBindingSites, keep.extra.columns =
 ```
 
 ```{r binding-sites-to-promoters}
-olap = findOverlaps(promoters, gr.bindingsites, ignore.strand=T,minoverlap = 100)
+olap = GenomicRanges::findOverlaps(promoters, gr.bindingsites, ignore.strand=T,minoverlap = 100)
 gr.bindingsites$WBGeneID = NA # must create a blank column first
 gr.bindingsites[to(olap)]$WBGeneID = promoters[from(olap)]$wbps_gene_id
 gr.promoter.bindingsites = gr.bindingsites[ !is.na(gr.bindingsites$WBGeneID)]
@@ -92,7 +91,9 @@ bigDF = right_join(elt2.intestine, promoter.bindingsites, by = "WBGeneID",copy=T
 #  2. dplyr:::left_join.data.frame(...)
 #  3. dplyr::auto_copy(x, y, copy = copy)
 
-bigDF.din = bigDF %>% filter(!is.na(din.status)) %>% select(din.status.description, embryo_int_exp, L1_int_exp, L3_int_exp, LE_bound:ZTF.7) %>% select(-i, -score, -., -core.start, -core.end)
+bigDF.din = bigDF %>% filter(!is.na(din.status)) %>% select(din.status.description, embryo_int_exp, L1_int_exp, L3_int_exp, LE_bound:ZTF.7) %>% select(-i, -score, -.)
+
+
 
 bigDF.din[is.na(bigDF.din)] <- "ftr"
 ```
@@ -139,12 +140,12 @@ ggtitle("Correspondance Analysis",) + #ylim(c(-0.5,0.5)) +
 
 # the highest score for up_ELT2_minus
 # is shared by these four hits who bind once apiece in two up_ELT2_minus gene
-agg1[,c('CEH.9','MML.1', 'FKH.2','NHR.67')]
-#                      CEH.9 MML.1 FKH.2 NHR.67
-# down_ELT2_minus          0     0     0      0
-# unchanged_ELT2_minus     0     0     0      0
-# up_ELT2_minus            1     1     1      1
-x %>% filter(CEH.9 > 0 | MML.1 > 0 | FKH.2 > 0 | NHR.67 > 0) # get the gene name on here
+agg1[,c('CEH.26','EGL.5', 'SEM.4')]
+#                      CEH.26 EGL.5 SEM.4
+# down_ELT2_minus           0     0     0
+# unchanged_ELT2_minus      0     0     0
+# up_ELT2_minus             1     1     1
+x %>% filter(CEH.26| EGL.5 |SEM.4) # singleton hits represent 2 genes
 
 ggsave("CO_biplot.LEL1.enrichedonly.pdf", width=15, height=20)
 
