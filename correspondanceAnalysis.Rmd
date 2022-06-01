@@ -71,8 +71,12 @@ gr.bindingsites = makeGRangesFromDataFrame(allBindingSites, keep.extra.columns =
 
 ```{r binding-sites-to-promoters}
 olap = GenomicRanges::findOverlaps(promoters, gr.bindingsites, ignore.strand=T,minoverlap = 100)
-gr.bindingsites$WBGeneID = NA # must create a blank column first
+# create blank columns 
+gr.bindingsites$WBGeneID = NA
+gr.bindingsites$gene_name = NA 
+# fill data with match
 gr.bindingsites[to(olap)]$WBGeneID = promoters[from(olap)]$wbps_gene_id
+gr.bindingsites[to(olap)]$gene_name = promoters[from(olap)]$external_gene_id
 gr.promoter.bindingsites = gr.bindingsites[ !is.na(gr.bindingsites$WBGeneID)]
 length(gr.promoter.bindingsites)
 ```
@@ -91,52 +95,50 @@ bigDF = right_join(elt2.intestine, promoter.bindingsites, by = "WBGeneID",copy=T
 #  2. dplyr:::left_join.data.frame(...)
 #  3. dplyr::auto_copy(x, y, copy = copy)
 
-bigDF.din = bigDF %>% filter(!is.na(din.status)) %>% select(din.status.description, embryo_int_exp, L1_int_exp, L3_int_exp, LE_bound:ZTF.7) %>% select(-i, -score, -.)
+bigDF.din = bigDF %>% filter(!is.na(din.status))
+#bigDF.din[is.na(bigDF.din)] <- "ftr" # FTRs replace any not enriched/equal/depleted
 
-
-
-bigDF.din[is.na(bigDF.din)] <- "ftr"
 ```
 
 
 ```{r aggregation}
-#x = bigDF.din %>% filter(embryo_int_exp != 'ftr' & L1_int_exp != 'ftr' & L3_int_exp != 'ftr')
+
 x = bigDF.din %>% filter(embryo_int_exp == 'enriched' & L1_int_exp == 'enriched')
-agg1 = stats::aggregate(x %>% select(LE_bound:ZTF.7), 
-                       by=list(dineen.status=x[[1]]),
+x.bindingpattern = x %>% select(-i, -score, -.) %>% select(LE_bound:ZTF.7)
+
+dups = names(which(table(x$gene_name)>1))
+###
+### need to do something here to collapse multiple rows for the same gene/promoter
+###
+nondup = x %>% filter(! gene_name %in% dups)
+nondup.bindingpattern = nondup %>% select(-i, -score, -.) %>% select(LE_bound:ZTF.7)
+  
+rownames(nondup.bindingpattern) <- nondup$gene_name
+#bigDF.din %<>% select(din.status.description, embryo_int_exp, L1_int_exp, L3_int_exp, LE_bound:ZTF.7) %>% select(-i, -score, -.)
+
+agg1 = stats::aggregate(x %>% select(-i, -score, -.) %>% select(LE_bound:ZTF.7), 
+                       by=list(dineen.status=x$din.status.description),
                        FUN=sum)
 rownames(agg1) <- agg1[[1]]
 agg1 = agg1[,-1]
 
 write.table(agg1, "CA.tab", quote=F)
+# compute the dot product between points and vectors
 
-agg2 = stats::aggregate(x %>% select(LE_bound:ZTF.7), 
-                       by=list(embryo.int.status=x$embryo_int_exp),
-                       FUN=sum)
-rownames(agg2) <- paste("embryo", agg2[[1]], sep=".")
-agg2 = agg2[,-1]
-
-agg3 = stats::aggregate(x %>% select(LE_bound:ZTF.7), 
-                       by=list(L1.int.status=x$L1_int_exp),
-                       FUN=sum)
-rownames(agg3) <- paste("L1", agg3[[1]], sep=".")
-agg3 = agg3[,-1]
-
-agg4 = stats::aggregate(x %>% select(LE_bound:ZTF.7), 
-                       by=list(L3.int.status=x$L3_int_exp),
-                       FUN=sum)   
-rownames(agg4) <- paste("L3", agg4[[1]], sep=".")
-agg4 = agg4[,-1]
-
-agg = rbind(agg1,agg2,agg3,agg4)
-                             
 agg.ca = dudi.coa(agg1, scannf=FALSE, nf=2)
-fviz_ca_biplot(agg.ca,repel=TRUE,col.col="brown", col.row="purple", arrows=c(T,F), max.overlaps=70) +
-ggtitle("Correspondance Analysis",) + #ylim(c(-0.5,0.5)) +
-  geom_point(inherit.aes=FALSE,
-             data=data.frame(x=c(0.06213413,0.2072243),
-                             y=c(-0.1359036,-0.3136792)),
-             aes(x=x,y=y))
+scores = as.matrix(agg.ca$co) %*% t(as.matrix(agg.ca$li))
+selectedcols = rownames(scores)[abs(apply(scores, 1, max))> .014]
+fviz_ca_biplot(agg.ca,repel=TRUE,
+               col.col="brown", 
+               col.row="purple", 
+               arrows=c(T,F), 
+               select.col = list(name=selectedcols),
+               max.overlaps=70) +
+ggtitle("Correspondance Analysis") #+ #ylim(c(-0.5,0.5)) +
+  # geom_point(inherit.aes=FALSE,
+  #            data=data.frame(x=c(0.06213413,0.2072243),
+  #                            y=c(-0.1359036,-0.3136792)),
+  #            aes(x=x,y=y))
 
 # the highest score for up_ELT2_minus
 # is shared by these four hits who bind once apiece in two up_ELT2_minus gene
@@ -145,13 +147,27 @@ agg1[,c('CEH.26','EGL.5', 'SEM.4')]
 # down_ELT2_minus           0     0     0
 # unchanged_ELT2_minus      0     0     0
 # up_ELT2_minus             1     1     1
-x %>% filter(CEH.26| EGL.5 |SEM.4) # singleton hits represent 2 genes
+x %>% filter(CEH.26| EGL.5 |SEM.4) %>% select(gene_name, 'CEH.26', 'EGL.5', 'SEM.4')
+
+
+agg1[,c("CEH.39", "LIN.11", "NHR.2",  "ZTF.11")]
+
+x %>% filter(CEH.39|LIN.11 |NHR.2  |ZTF.11) %>% select(gene_name,"CEH.39", "LIN.11", "NHR.2",  "ZTF.11")
+
+
+# apply the scores back to the binding obj to find the best-described genes for "up"
+n = nrow(nondup.bindingpattern)
+mx = matrix(rep(c(scores[,3]),n), nrow=n, byrow=T)
+dimnames(mx) <- list(rownames=rownames(nondup.bindingpattern), colnames(nondup.bindingpattern))
+# apply score matrix to binding pattern
+scored_targets = rowSums(nondup.bindingpattern * mx) %>% sort(decreasing=T)
+top_ten = scored_targets[1:10]
+binding_pattern.top_ten = nondup.bindingpattern[names(top_ten),]
+zero_columns = which(colSums(nondup.bindingpattern[names(top_ten),]) == 0)
+binding_pattern.top_ten = binding_pattern.top_ten[, -zero_columns]
+binding_pattern.top_ten
 
 ggsave("CO_biplot.LEL1.enrichedonly.pdf", width=15, height=20)
-
-# compute the dot product between points and vectors
-scores = as.matrix(agg.ca$co) %*% t(as.matrix(agg.ca$li))
-
 
 
 threshold=100
