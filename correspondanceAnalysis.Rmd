@@ -216,5 +216,49 @@ ggplot(points, aes(x=Comp1, y=Comp2)) +
   xlab(sprintf("Dim1 (%2.0f%%)", 100*explained[1])) +
   ylab(sprintf("Dim2 (%2.0f%%)", 100*explained[2])) + 
   theme(axis.title = element_text(size=15), axis.text = element_text(size=15))
-  
+```
+
+```{r add-noise}
+library(knitr)
+set.seed(3)
+noise1 = mx + round(runif(length(mx),max = 5))
+mx.ca = dudi.coa(noise1,scannf=FALSE, nf=2)
+fviz_ca_biplot(mx.ca,repel=TRUE,col.col="brown", col.row="purple", arrows=c(T,F), max.overlaps=70) + 
+  theme(title = element_text(size=5),
+        text = element_text(size=100),
+        axis.text = element_text(size=15),
+        axis.title = element_text(size=15)) +
+  ggtitle("Add noise")
+kable(noise1)
+
+noise2 = mx + round(runif(length(mx),max = 5))
+mx.ca = dudi.coa(noise2,scannf=FALSE, nf=2)
+fviz_ca_biplot(mx.ca,repel=TRUE,col.col="brown", col.row="purple", arrows=c(T,F), max.overlaps=70) + 
+  theme(title = element_text(size=5),
+        text = element_text(size=100),
+        axis.text = element_text(size=15),
+        axis.title = element_text(size=15)) +
+  ggtitle("Add noise 2")
+
+kable(noise2)
+noise3 = mx + round(runif(length(mx),max = 5))
+mx.ca = dudi.coa(noise3,scannf=FALSE, nf=2)
+fviz_ca_biplot(mx.ca,repel=TRUE,col.col="brown", col.row="purple", arrows=c(T,F), max.overlaps=70) + 
+  theme(title = element_text(size=5),
+        text = element_text(size=100),
+        axis.text = element_text(size=15),
+        axis.title = element_text(size=15)) +
+  ggtitle("Add noise 3")
+kable(noise3)
+```
+
+```{r add-uniform}
+noise1 = mx + 50
+mx.ca = dudi.coa(noise1,scannf=FALSE, nf=2)
+fviz_ca_biplot(mx.ca,repel=TRUE,col.col="brown", col.row="purple", arrows=c(T,F), max.overlaps=70) + 
+  theme(title = element_text(size=5),
+        text = element_text(size=100),
+        axis.text = element_text(size=15),
+        axis.title = element_text(size=15)) +
+  ggtitle("Add same to every count")
 ```
