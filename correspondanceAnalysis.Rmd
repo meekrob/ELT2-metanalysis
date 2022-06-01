@@ -23,6 +23,7 @@ library(ade4)
 library(tidyr)
 library(dplyr)
 library(GenomicRanges)
+library(ggrepel)
 #install.packages("devtools")
 #devtools::install_github("meekrob/ParasiteXML") # Brings biomaRt, GenomicRanges
 library(ParasiteXML)
@@ -122,11 +123,14 @@ agg1 = stats::aggregate(x %>% select(-i, -score, -.) %>% select(LE_bound:ZTF.7),
 rownames(agg1) <- agg1[[1]]
 agg1 = agg1[,-1]
 
+zeroColumns = which(colSums(agg1) == 0)
+agg1 = agg1[,-zeroColumns]
 write.table(agg1, "CA.tab", quote=F)
-# compute the dot product between points and vectors
 
 agg.ca = dudi.coa(agg1, scannf=FALSE, nf=2)
+# compute the dot product between points and vectors
 scores = as.matrix(agg.ca$co) %*% t(as.matrix(agg.ca$li))
+
 selectedcols = rownames(scores)[abs(apply(scores, 1, max))> .014]
 fviz_ca_biplot(agg.ca,repel=TRUE,
                col.col="brown", 
@@ -135,10 +139,6 @@ fviz_ca_biplot(agg.ca,repel=TRUE,
                select.col = list(name=selectedcols),
                max.overlaps=70) +
 ggtitle("Correspondance Analysis") #+ #ylim(c(-0.5,0.5)) +
-  # geom_point(inherit.aes=FALSE,
-  #            data=data.frame(x=c(0.06213413,0.2072243),
-  #                            y=c(-0.1359036,-0.3136792)),
-  #            aes(x=x,y=y))
 
 # the highest score for up_ELT2_minus
 # is shared by these four hits who bind once apiece in two up_ELT2_minus gene
@@ -148,52 +148,73 @@ agg1[,c('CEH.26','EGL.5', 'SEM.4')]
 # unchanged_ELT2_minus      0     0     0
 # up_ELT2_minus             1     1     1
 x %>% filter(CEH.26| EGL.5 |SEM.4) %>% select(gene_name, 'CEH.26', 'EGL.5', 'SEM.4')
-
-
 agg1[,c("CEH.39", "LIN.11", "NHR.2",  "ZTF.11")]
+ggsave("CO_biplot.LEL1.enrichedonly.pdf", width=15, height=20)
 
 x %>% filter(CEH.39|LIN.11 |NHR.2  |ZTF.11) %>% select(gene_name,"CEH.39", "LIN.11", "NHR.2",  "ZTF.11")
 
 
 # apply the scores back to the binding obj to find the best-described genes for "up"
-n = nrow(nondup.bindingpattern)
-mx = matrix(rep(c(scores[,3]),n), nrow=n, byrow=T)
-dimnames(mx) <- list(rownames=rownames(nondup.bindingpattern), colnames(nondup.bindingpattern))
-# apply score matrix to binding pattern
-scored_targets = rowSums(nondup.bindingpattern * mx) %>% sort(decreasing=T)
-top_ten = scored_targets[1:10]
-binding_pattern.top_ten = nondup.bindingpattern[names(top_ten),]
-zero_columns = which(colSums(nondup.bindingpattern[names(top_ten),]) == 0)
-binding_pattern.top_ten = binding_pattern.top_ten[, -zero_columns]
-binding_pattern.top_ten
+# n = nrow(nondup.bindingpattern)
+# mx = matrix(rep(c(scores[,3]),n), nrow=n, byrow=T)
+# dimnames(mx) <- list(rownames=rownames(nondup.bindingpattern), colnames(nondup.bindingpattern))
+# # apply score matrix to binding pattern
+# scored_targets = rowSums(nondup.bindingpattern * mx) %>% sort(decreasing=T)
+# top_ten = scored_targets[1:10]
+# binding_pattern.top_ten = nondup.bindingpattern[names(top_ten),]
+# zero_columns = which(colSums(nondup.bindingpattern[names(top_ten),]) == 0)
+# binding_pattern.top_ten = binding_pattern.top_ten[, -zero_columns]
+# binding_pattern.top_ten
 
 ggsave("CO_biplot.LEL1.enrichedonly.pdf", width=15, height=20)
 
-
-threshold=100
-agg1.highercounts = agg1[,which(colSums(agg1)>=threshold)]
-agg.ca.highercounts = dudi.coa(agg1.highercounts, scannf=FALSE, nf=2)
-fviz_ca_biplot(agg.ca.highercounts,repel=TRUE,col.col="brown", col.row="purple", arrows=c(T,F)) +
-    ggtitle(sprintf("Correspondance Analysis (%d or more total counts)",threshold)) + ylim(c(-0.5,0.5)) #+ xlim(c(-.3,.6))
-ggsave(sprintf("CO_biplot.LEL1.enrichedonly.%d.pdf", threshold), width=15, height=20)
 ```
 
-```{r look-at-resids}
-n = sum(agg1)
-p = agg1/n
-column.masses = colSums(p)
-row.masses = rowSums(p)
-E = row.masses %o% column.masses
-R = p - E
-I = R / E
-is_finite = is.finite(unlist(I[1,]))
-pdf("CA_indexed_residuals.pdf", width=10, height=12)
-pheatmap(t(I[,is_finite]))
-dev.off()
-```
+```{r diagram-plot}
 
+mx = matrix(c(17,0,0, 7,0,
+              0,10, 7,7,0,
+              0,0,  7,7,10
+              ), byrow=TRUE, nrow = 3)
+dimnames(mx) = list(fake_gene_class=c("unchanged","up","down"),
+                    fake_TF=c("fake1","fake2","fake3","fake4","fake5"
+                    ))
+#rownames(mx) <- c("unchanged","up","down")
+mx
+knitr::kable(mx)
 
-```{r pheatmap}
+mx.ca = dudi.coa(mx,scannf=FALSE, nf=2)
+fviz_ca_biplot(mx.ca,repel=TRUE,col.col="brown", col.row="purple", arrows=c(T,F), max.overlaps=70) + 
+  theme(text = element_text(size=100),
+        axis.text = element_text(size=15),
+        axis.title = element_text(size=15)) +
+  ggtitle(element_blank())
 
-pheatmap(t(agg1.70[,-3]))
+explained = mx.ca$eig %>% proportions()
+arrows = mx.ca$li
+
+points = mx.ca$co
+arrows$labels = rownames(arrows)
+points$labels = rownames(points)
+arrow_labels = arrows
+arrow_labels[]
+ggplot(points, aes(x=Comp1, y=Comp2)) + 
+  geom_hline(yintercept = 0) + 
+  geom_vline(xintercept = 0) + 
+  geom_point(color="brown") + 
+  geom_text_repel(aes(label=labels), size=7, color="brown") +
+  
+  geom_text_repel(inherit.aes = FALSE, 
+                  data= arrows %>% mutate(Axis1=replace(Axis1,round(Axis1) ==1, .75)), 
+                  aes(x=Axis1, y=Axis2,label=labels), size=7, color="purple") +
+  geom_segment(inherit.aes = FALSE, data=arrows, aes(x=0, y=0, 
+                                                     xend=Axis1, 
+                                                     yend=Axis2), 
+               color="purple",
+               size=1,
+               arrow = arrow(length = unit(0.5, "cm"))) +
+  xlab(sprintf("Dim1 (%2.0f%%)", 100*explained[1])) +
+  ylab(sprintf("Dim2 (%2.0f%%)", 100*explained[2])) + 
+  theme(axis.title = element_text(size=15), axis.text = element_text(size=15))
+  
 ```
