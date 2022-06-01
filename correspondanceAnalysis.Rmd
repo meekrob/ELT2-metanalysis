@@ -2,7 +2,8 @@
 title: "Correspondence Analysis"
 author: "David C. King"
 date: "4/5/2022"
-output: html_document
+output: 
+ powerpoint_presentation
 ---
 
 Various references:
