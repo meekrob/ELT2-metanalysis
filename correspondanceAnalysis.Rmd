@@ -151,27 +151,22 @@ agg1[,c('CEH.26','EGL.5', 'SEM.4')]
 # down_ELT2_minus           0     0     0
 # unchanged_ELT2_minus      0     0     0
 # up_ELT2_minus             1     1     1
-x %>% filter(CEH.26| EGL.5 |SEM.4) %>% select(gene_name, 'CEH.26', 'EGL.5', 'SEM.4')
-agg1[,c("CEH.39", "LIN.11", "NHR.2",  "ZTF.11")]
+#x %>% filter(CEH.26| EGL.5 |SEM.4) %>% select(gene_name, 'CEH.26', 'EGL.5', 'SEM.4')
+#agg1[,c("CEH.39", "LIN.11", "NHR.2",  "ZTF.11")]
 ggsave("CO_biplot.LEL1.enrichedonly.pdf", width=15, height=20)
 
-x %>% filter(CEH.39|LIN.11 |NHR.2  |ZTF.11) %>% select(gene_name,"CEH.39", "LIN.11", "NHR.2",  "ZTF.11")
+top.scores = unlist(agg.ca$tab[3,]) %>% sort(decreasing = T) %>% head(10)
 
+top.genenames = names(top.scores)
 
-# apply the scores back to the binding obj to find the best-described genes for "up"
-# n = nrow(nondup.bindingpattern)
-# mx = matrix(rep(c(scores[,3]),n), nrow=n, byrow=T)
-# dimnames(mx) <- list(rownames=rownames(nondup.bindingpattern), colnames(nondup.bindingpattern))
-# # apply score matrix to binding pattern
-# scored_targets = rowSums(nondup.bindingpattern * mx) %>% sort(decreasing=T)
-# top_ten = scored_targets[1:10]
-# binding_pattern.top_ten = nondup.bindingpattern[names(top_ten),]
-# zero_columns = which(colSums(nondup.bindingpattern[names(top_ten),]) == 0)
-# binding_pattern.top_ten = binding_pattern.top_ten[, -zero_columns]
-# binding_pattern.top_ten
+agg1[,top.genenames]%>% knitr::kable(caption="Top 10 Transcription factors with highest association to UP_ELT2_MINUS")
+
+t(data.frame(up_ELT2_minus_score=top.scores))  %>% kable(caption="Associated scores", digits=3)
+
+x %>% filter(rowSums(x[,top.genenames[1:8]]) > 0  & din.status.description == "up_ELT2_minus") %>%
+  select(gene_name, !!!syms(top.genenames)) %>% knitr::kable(caption="List of low-count genes")
 
 ggsave("CO_biplot.LEL1.enrichedonly.pdf", width=15, height=20)
-
 ```
 
 ```{r diagram-plot}
