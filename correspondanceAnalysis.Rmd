@@ -96,8 +96,11 @@ bigDF = right_join(elt2.intestine, promoter.bindingsites, by = "WBGeneID",copy=T
 #  1. dplyr::left_join(elt2.intestine, promoter.bindingsites, by = "WBGeneID")
 #  2. dplyr:::left_join.data.frame(...)
 #  3. dplyr::auto_copy(x, y, copy = copy)
-
+bigDF %<>% mutate(LE_bound = ifelse(LE_bound, 1, 0),
+                  L1_bound = ifelse(L1_bound, 1, 0),
+                  L3_bound = ifelse(L3_bound, 1, 0))
 bigDF.din = bigDF %>% filter(!is.na(din.status))
+
 #bigDF.din[is.na(bigDF.din)] <- "ftr" # FTRs replace any not enriched/equal/depleted
 
 ```
@@ -252,6 +255,21 @@ fviz_ca_biplot(mx.ca,repel=TRUE,col.col="brown", col.row="purple", arrows=c(T,F)
   ggtitle("Add noise 3")
 kable(noise3)
 ```
+```{r replicator}
+replicator = function(A,B,C,tot.A=17,tot.B=10,tot.C=10) {
+  N = tot.A + tot.B + tot.C
+  cnts = integer(N)
+  lvls = factor(c( rep('unchanged', tot.A),
+            rep('up', tot.B),
+            rep('down', tot.C)), levels=c("unchanged","up","down"))
+  a = 1
+  b = min(which(lvls == 'up'))
+  c = min(which(lvls == 'down'))
+  cnts[a:(a+A)] <- ifelse(A,1,0)
+  cnts[b:(b+B)] <- ifelse(B,1,0)
+  cnts[c:(c+C)] <- ifelse(C,1,0)
+}
+```
 
 ```{r add-uniform}
 noise1 = mx + 50
@@ -262,4 +280,17 @@ fviz_ca_biplot(mx.ca,repel=TRUE,col.col="brown", col.row="purple", arrows=c(T,F)
         axis.text = element_text(size=15),
         axis.title = element_text(size=15)) +
   ggtitle("Add same to every count")
+```
+
+```{r add-random-columns}
+rx = matrix(round(runif(3*5, max=17)), nrow=3)
+colnames(rx) <- c("rand1","rand2","rand3","rand4","rand5")
+
+mx.ca = dudi.coa(cbind(mx,rx[,1:5]),scannf=FALSE, nf=2)
+fviz_ca_biplot(mx.ca,repel=TRUE,col.col="brown", col.row="purple", arrows=c(T,F), max.overlaps=70) + 
+  theme(title = element_text(size=5),
+        text = element_text(size=100),
+        axis.text = element_text(size=15),
+        axis.title = element_text(size=15)) +
+  ggtitle("Add random/uninformative columns")
 ```
