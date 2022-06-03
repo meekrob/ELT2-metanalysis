@@ -2,8 +2,9 @@
 title: "Correspondence Analysis"
 author: "David C. King"
 date: "4/5/2022"
-output: 
- powerpoint_presentation
+output:
+  powerpoint_presentation: default
+
 ---
 
 Various references:
@@ -32,6 +33,9 @@ bcd=getwd()
 setwd('/Users/david/work/ELT-2-ChIP-revision/David/01_promoters/02_scripts')
 source('david-reader.R')
 setwd(bcd)
+library(knitr)
+library(kableExtra)
+library(flextable)
 ```
 
 ```{r read-data}
@@ -83,7 +87,7 @@ gr.promoter.bindingsites = gr.bindingsites[ !is.na(gr.bindingsites$WBGeneID)]
 length(gr.promoter.bindingsites)
 ```
 
-
+### here is a header
 
 ```{r big-data}
 promoter.bindingsites = mcols(gr.promoter.bindingsites)
@@ -96,9 +100,9 @@ bigDF = right_join(elt2.intestine, promoter.bindingsites, by = "WBGeneID",copy=T
 #  1. dplyr::left_join(elt2.intestine, promoter.bindingsites, by = "WBGeneID")
 #  2. dplyr:::left_join.data.frame(...)
 #  3. dplyr::auto_copy(x, y, copy = copy)
-bigDF %<>% mutate(LE_bound = ifelse(LE_bound, 1, 0),
-                  L1_bound = ifelse(L1_bound, 1, 0),
-                  L3_bound = ifelse(L3_bound, 1, 0))
+bigDF %<>% mutate(LE_bound = ifelse(LE_bound, 1L, 0L), # need to apply as.logical() later
+                  L1_bound = ifelse(L1_bound, 1L, 0L),
+                  L3_bound = ifelse(L3_bound, 1L, 0L))
 bigDF.din = bigDF %>% filter(!is.na(din.status))
 
 #bigDF.din[is.na(bigDF.din)] <- "ftr" # FTRs replace any not enriched/equal/depleted
@@ -106,23 +110,23 @@ bigDF.din = bigDF %>% filter(!is.na(din.status))
 ```
 
 
-```{r aggregation}
+### aggregation header
+
+```{r aggregation, warning=FALSE, message=FALSE, echo=FALSE}
 
 x = bigDF.din %>% filter(embryo_int_exp == 'enriched' & L1_int_exp == 'enriched')
-x.bindingpattern = x %>% select(-i, -score, -.) %>% select(LE_bound:ZTF.7)
 
-dups = names(which(table(x$gene_name)>1))
-###
-### need to do something here to collapse multiple rows for the same gene/promoter
-###
-nondup = x %>% filter(! gene_name %in% dups)
-nondup.bindingpattern = nondup %>% select(-i, -score, -.) %>% select(LE_bound:ZTF.7)
-  
-rownames(nondup.bindingpattern) <- nondup$gene_name
-#bigDF.din %<>% select(din.status.description, embryo_int_exp, L1_int_exp, L3_int_exp, LE_bound:ZTF.7) %>% select(-i, -score, -.)
+# compress multi-hits (more than 1 TF in a given promoter)
+x.nr = x %>% group_by(gene_name) %>% 
+  select(din.status.description, ends_with("_bound"), AHA.1:ZTF.7) %>%
+  summarize(din.status.description=unique(din.status.description), 
+            across(LE_bound:ZTF.7,
+                   .fns = function(x) {as.integer(any(x))})) 
 
-agg1 = stats::aggregate(x %>% select(-i, -score, -.) %>% select(LE_bound:ZTF.7), 
-                       by=list(dineen.status=x$din.status.description),
+rownames(x.nr) <- x.nr$gene_name
+
+agg1 = stats::aggregate(x.nr %>% select(LE_bound:ZTF.7), 
+                       by=list(dineen.status=x.nr$din.status.description),
                        FUN=sum)
 rownames(agg1) <- agg1[[1]]
 agg1 = agg1[,-1]
@@ -143,31 +147,51 @@ fviz_ca_biplot(agg.ca,repel=TRUE,
                select.col = list(name=selectedcols),
                max.overlaps=70) +
 ggtitle("Correspondance Analysis") #+ #ylim(c(-0.5,0.5)) +
-
-# the highest score for up_ELT2_minus
-# is shared by these four hits who bind once apiece in two up_ELT2_minus gene
-agg1[,c('CEH.26','EGL.5', 'SEM.4')]
-#                      CEH.26 EGL.5 SEM.4
-# down_ELT2_minus           0     0     0
-# unchanged_ELT2_minus      0     0     0
-# up_ELT2_minus             1     1     1
-#x %>% filter(CEH.26| EGL.5 |SEM.4) %>% select(gene_name, 'CEH.26', 'EGL.5', 'SEM.4')
-#agg1[,c("CEH.39", "LIN.11", "NHR.2",  "ZTF.11")]
 ggsave("CO_biplot.LEL1.enrichedonly.pdf", width=15, height=20)
 
 top.scores = unlist(agg.ca$tab[3,]) %>% sort(decreasing = T) %>% head(10)
-
 top.genenames = names(top.scores)
 
-agg1[,top.genenames]%>% knitr::kable(caption="Top 10 Transcription factors with highest association to UP_ELT2_MINUS")
+#agg1[,top.genenames]%>% kable(caption="Top 10 Transcription factors with highest association to UP_ELT2_MINUS")
 
-t(data.frame(up_ELT2_minus_score=top.scores))  %>% kable(caption="Associated scores", digits=3)
+#agg1[,top.genenames]%>% kbl() %>% kable_styling()
+```
+
+### Top 10 scoring TFs
+
+```{r flextable1, echo=FALSE}
+
+t(data.frame(up_ELT2_minus_score=top.scores)) %>% as.data.frame()%>% 
+flextable() %>% colformat_double(digits=3) %>% set_caption(caption="Top 10 scoring TFs") %>%
+  autofit()
+```
+
+### Genes bound by top 8 scoring TFs
+
+```{r flextable2, echo=FALSE}
+x %>% filter(rowSums(x[,top.genenames[1:8]]) > 0  & din.status.description == "up_ELT2_minus") %>%
+  select(gene_name, !!!syms(top.genenames[1:8])) %>% 
+  flextable() %>% set_caption(caption="Genes bound by top 8 scoring TFs") %>%
+  autofit()
+
+
+```
+
+### After flextable
+
+Here is some shit after the flextable.
+
+```{r}
 
 x %>% filter(rowSums(x[,top.genenames[1:8]]) > 0  & din.status.description == "up_ELT2_minus") %>%
-  select(gene_name, !!!syms(top.genenames)) %>% knitr::kable(caption="List of low-count genes")
+  select(gene_name, !!!syms(top.genenames)) 
+
+
 
 ggsave("CO_biplot.LEL1.enrichedonly.pdf", width=15, height=20)
 ```
+
+## Fake data to understand the method
 
 ```{r diagram-plot}
 
