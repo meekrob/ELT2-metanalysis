@@ -214,14 +214,35 @@ my_basket
 ## #   broccoli <dbl>, cigarettes <dbl>
 ```
 
+### h2o installation and update
+```{r h2o-installation, eval=TRUE}
+# gotten from: https://h2o-release.s3.amazonaws.com/h2o/rel-zygmund/1/index.html
+# tab: INSTALL-IN-R
+
+
+# The following two commands remove any previously installed H2O packages for R.
+if ("package:h2o" %in% search()) { detach("package:h2o", unload=TRUE) }
+if ("h2o" %in% rownames(installed.packages())) { remove.packages("h2o") }
+
+# Next, we download packages that H2O depends on.
+pkgs <- c("RCurl","jsonlite")
+for (pkg in pkgs) {
+if (! (pkg %in% rownames(installed.packages()))) { install.packages(pkg) }
+}
+
+# Now we download, install and initialize the H2O package for R.
+install.packages("h2o", type="source", repos="https://h2o-release.s3.amazonaws.com/h2o/rel-zygmund/1/R")
+
+```
+
 ## Modeling Process
 ```{r Prerequisites}
+library(h2o)
+
 # h2o set-up 
 h2o.no_progress()  # turn off h2o progress bars
 
-# have to do the following in the terminal:
-# java -jar /Library/Frameworks/R.framework/Versions/4.1/Resources/library/h2o/java/h2o.jar
-h2o.init()         # launch h2o
+h2o.init()         # launch h2o. 
 
 # Ames housing data
 ames <- AmesHousing::make_ames()
