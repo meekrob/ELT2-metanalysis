@@ -3,6 +3,9 @@ title: "Machine Learning"
 author: "David C. King"
 date: "5/8/2022"
 output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 ```{r setup, include=FALSE}
@@ -90,17 +93,15 @@ for (pkg in pkgs) {
 }
 ```
 
-# https://bradleyboehmke.github.io/HOML/intro.html
+# <https://bradleyboehmke.github.io/HOML/intro.html>
 
 ## Ames Housing Data
 
-Property sales information as described in De Cock (2011).
- - problem type: supervised regression
- - response variable: Sale_Price (i.e., $195,000, $215,000)
- - features: 80
- - observations: 2,930
- - objective: use property attributes to predict the sale price of a home
- - access: provided by the AmesHousing package (Kuhn 2017a)
+Property sales information as described in De Cock (2011). - problem
+type: supervised regression - response variable: Sale_Price (i.e.,
+\$195,000, \$215,000) - features: 80 - observations: 2,930 - objective:
+use property attributes to predict the sale price of a home - access:
+provided by the AmesHousing package (Kuhn 2017a)
 
 more details: See ?AmesHousing::ames_raw
 
@@ -121,18 +122,20 @@ head(ames$Sale_Price)
 
 ### Note:
 
-You can see the entire data cleaning process to transform the raw Ames housing data (AmesHousing::ames_raw) to the final clean data (AmesHousing::make_ames) that we will use in machine learning algorithms throughout this book by typing AmesHousing::make_ames into the R console.
+You can see the entire data cleaning process to transform the raw Ames
+housing data (AmesHousing::ames_raw) to the final clean data
+(AmesHousing::make_ames) that we will use in machine learning algorithms
+throughout this book by typing AmesHousing::make_ames into the R
+console.
 
 ## Datasets
 
-
-Employee attrition information originally provided by IBM Watson Analytics Lab.
- - problem type: supervised binomial classification
- - response variable: Attrition (i.e., “Yes”, “No”)
- - features: 30
- - observations: 1,470
- - objective: use employee attributes to predict if they will attrit (leave the company)
- - access: provided by the rsample package (Kuhn and Wickham 2019)
+Employee attrition information originally provided by IBM Watson
+Analytics Lab. - problem type: supervised binomial classification -
+response variable: Attrition (i.e., "Yes", "No") - features: 30 -
+observations: 1,470 - objective: use employee attributes to predict if
+they will attrit (leave the company) - access: provided by the rsample
+package (Kuhn and Wickham 2019)
 
 more details: See ?rsample::attrition
 
@@ -153,14 +156,18 @@ head(attrition$Attrition)
 ## Levels: No Yes
 ```
 
-Image information for handwritten numbers originally presented to AT&T Bell Lab’s to help build automatic mail-sorting machines for the USPS. Has been used since early 1990s to compare machine learning performance on pattern recognition (i.e., LeCun et al. (1990); LeCun et al. (1998); Cireşan, Meier, and Schmidhuber (2012)).
-Problem type: supervised multinomial classification
-response variable: V785 (i.e., numbers to predict: 0, 1, …, 9)
-features: 784
-observations: 60,000 (train) / 10,000 (test)
-objective: use attributes about the “darkness” of each of the 784 pixels in images of handwritten numbers to predict if the number is 0, 1, …, or 9.
-access: provided by the dslabs package (Irizarry 2018)
-more details: See ?dslabs::read_mnist() and online MNIST documentation
+Image information for handwritten numbers originally presented to AT&T
+Bell Lab's to help build automatic mail-sorting machines for the USPS.
+Has been used since early 1990s to compare machine learning performance
+on pattern recognition (i.e., LeCun et al. (1990); LeCun et al. (1998);
+Cireşan, Meier, and Schmidhuber (2012)). Problem type: supervised
+multinomial classification response variable: V785 (i.e., numbers to
+predict: 0, 1, ..., 9) features: 784 observations: 60,000 (train) /
+10,000 (test) objective: use attributes about the "darkness" of each of
+the 784 pixels in images of handwritten numbers to predict if the number
+is 0, 1, ..., or 9. access: provided by the dslabs package (Irizarry
+2018) more details: See ?dslabs::read_mnist() and online MNIST
+documentation
 
 ```{r data-mnist}
 #access data
@@ -215,7 +222,8 @@ my_basket
 ```
 
 ### h2o installation and update
-```{r h2o-installation, eval=TRUE}
+
+```{r h2o-installation, eval=FALSE, include=FALSE}
 # gotten from: https://h2o-release.s3.amazonaws.com/h2o/rel-zygmund/1/index.html
 # tab: INSTALL-IN-R
 
@@ -236,6 +244,7 @@ install.packages("h2o", type="source", repos="https://h2o-release.s3.amazonaws.c
 ```
 
 ## Modeling Process
+
 ```{r Prerequisites}
 library(h2o)
 
@@ -258,42 +267,62 @@ churn.h2o <- as.h2o(churn)
 
 ## Data splitting
 
-A major goal of the machine learning process is to find an algorithm  
-f
-(
-X
-)
-  that most accurately predicts future values ( 
-^
-Y
- ) based on a set of features ( 
-X
- ). In other words, we want an algorithm that not only fits well to our past data, but more importantly, one that predicts a future outcome accurately. This is called the generalizability of our algorithm. How we “spend” our data will help us understand how well our algorithm generalizes to unseen data.
+A major goal of the machine learning process is to find an algorithm\
+f ( X ) that most accurately predicts future values ( \^ Y ) based on a
+set of features ( X ). In other words, we want an algorithm that not
+only fits well to our past data, but more importantly, one that predicts
+a future outcome accurately. This is called the generalizability of our
+algorithm. How we "spend" our data will help us understand how well our
+algorithm generalizes to unseen data.
 
-To provide an accurate understanding of the generalizability of our final optimal model, we can split our data into training and test data sets:
+To provide an accurate understanding of the generalizability of our
+final optimal model, we can split our data into training and test data
+sets:
 
-Training set: these data are used to develop feature sets, train our algorithms, tune hyperparameters, compare models, and all of the other activities required to choose a final model (e.g., the model we want to put into production).
-Test set: having chosen a final model, these data are used to estimate an unbiased assessment of the model’s performance, which we refer to as the generalization error.
-It is critical that the test set not be used prior to selecting your final model. Assessing results on the test set prior to final model selection biases the model selection process since the testing data will have become part of the model development process.
+Training set: these data are used to develop feature sets, train our
+algorithms, tune hyperparameters, compare models, and all of the other
+activities required to choose a final model (e.g., the model we want to
+put into production). Test set: having chosen a final model, these data
+are used to estimate an unbiased assessment of the model's performance,
+which we refer to as the generalization error. It is critical that the
+test set not be used prior to selecting your final model. Assessing
+results on the test set prior to final model selection biases the model
+selection process since the testing data will have become part of the
+model development process.
 
-Splitting data into training and test sets.
-Figure 2.2: Splitting data into training and test sets.
+Splitting data into training and test sets. Figure 2.2: Splitting data
+into training and test sets.
 
-Given a fixed amount of data, typical recommendations for splitting your data into training-test splits include 60% (training)–40% (testing), 70%–30%, or 80%–20%. Generally speaking, these are appropriate guidelines to follow; however, it is good to keep the following points in mind:
+Given a fixed amount of data, typical recommendations for splitting your
+data into training-test splits include 60% (training)--40% (testing),
+70%--30%, or 80%--20%. Generally speaking, these are appropriate
+guidelines to follow; however, it is good to keep the following points
+in mind:
 
-Spending too much in training (e.g.,  >80%) won’t allow us to get a good assessment of predictive performance. We may find a model that fits the training data very well, but is not generalizable (overfitting).
-Sometimes too much spent in testing ( >40%) won’t allow us to get a good assessment of model parameters.
-Other factors should also influence the allocation proportions. For example, very large training sets (e.g.,  
-n>100K) often result in only marginal gains compared to smaller sample sizes. Consequently, you may use a smaller training sample to increase computation speed (e.g., models built on larger training sets often take longer to score new data sets in production). In contrast, as  p≥n
-(where p represents the number of features), larger samples sizes are often required to identify consistent signals in the features.
+Spending too much in training (e.g., \>80%) won't allow us to get a good
+assessment of predictive performance. We may find a model that fits the
+training data very well, but is not generalizable (overfitting).
+Sometimes too much spent in testing ( \>40%) won't allow us to get a
+good assessment of model parameters. Other factors should also influence
+the allocation proportions. For example, very large training sets
+(e.g.,\
+n\>100K) often result in only marginal gains compared to smaller sample
+sizes. Consequently, you may use a smaller training sample to increase
+computation speed (e.g., models built on larger training sets often take
+longer to score new data sets in production). In contrast, as p≥n (where
+p represents the number of features), larger samples sizes are often
+required to identify consistent signals in the features.
 
-The two most common ways of splitting data include simple random sampling and stratified sampling.
+The two most common ways of splitting data include simple random
+sampling and stratified sampling.
 
 ### Simple Random Sampling
 
-The simplest way to split the data into training and test sets is to take a simple random sample. This does not control for any data attributes, such as the distribution of your response variable ( 
-Y
- ). There are multiple ways to split our data in R. Here we show four options to produce a 70–30 split in the Ames housing data:
+The simplest way to split the data into training and test sets is to
+take a simple random sample. This does not control for any data
+attributes, such as the distribution of your response variable ( Y ).
+There are multiple ways to split our data in R. Here we show four
+options to produce a 70--30 split in the Ames housing data:
 
 ```{r simple-random-sampling}
 # Using base R
@@ -334,15 +363,29 @@ forplotting = data.frame(Sale_Price=as.vector(train_4$Sale_Price), method="h2o",
 
 ggplot(forplotting, aes(x=Sale_Price, color=set)) + geom_density() + facet_wrap(~method)
 ```
+
 ### Stratified Sampling
 
-If we want to explicitly control the sampling so that our training and test sets have similar  
-Y
-  distributions, we can use stratified sampling. This is more common with classification problems where the response variable may be severely imbalanced (e.g., 90% of observations with response “Yes” and 10% with response “No”). However, we can also apply stratified sampling to regression problems for data sets that have a small sample size and where the response variable deviates strongly from normality (i.e., positively skewed like Sale_Price). With a continuous response variable, stratified sampling will segment  
-Y
-  into quantiles and randomly sample from each. Consequently, this will help ensure a balanced representation of the response distribution in both the training and test sets.
+If we want to explicitly control the sampling so that our training and
+test sets have similar\
+Y distributions, we can use stratified sampling. This is more common
+with classification problems where the response variable may be severely
+imbalanced (e.g., 90% of observations with response "Yes" and 10% with
+response "No"). However, we can also apply stratified sampling to
+regression problems for data sets that have a small sample size and
+where the response variable deviates strongly from normality (i.e.,
+positively skewed like Sale_Price). With a continuous response variable,
+stratified sampling will segment\
+Y into quantiles and randomly sample from each. Consequently, this will
+help ensure a balanced representation of the response distribution in
+both the training and test sets.
 
-The easiest way to perform stratified sampling on a response variable is to use the rsample package, where you specify the response variable to stratify. The following illustrates that in our original employee attrition data we have an imbalanced response (No: 84%, Yes: 16%). By enforcing stratified sampling, both our training and testing sets have approximately equal response distributions.
+The easiest way to perform stratified sampling on a response variable is
+to use the rsample package, where you specify the response variable to
+stratify. The following illustrates that in our original employee
+attrition data we have an imbalanced response (No: 84%, Yes: 16%). By
+enforcing stratified sampling, both our training and testing sets have
+approximately equal response distributions.
 
 ```{r stratified-sampling}
 # original response distribution
@@ -371,13 +414,37 @@ table(test_strat$Attrition) %>% proportions()
 
 ### 2.2.3 Class Imbalances
 
-Imbalanced data can have a significant impact on model predictions and performance (Kuhn and Johnson 2013). Most often this involves classification problems where one class has a very small proportion of observations (e.g., defaults - 5% versus nondefaults - 95%). Several sampling methods have been developed to help remedy class imbalance and most of them can be categorized as either up-sampling or down-sampling.
+Imbalanced data can have a significant impact on model predictions and
+performance (Kuhn and Johnson 2013). Most often this involves
+classification problems where one class has a very small proportion of
+observations (e.g., defaults - 5% versus nondefaults - 95%). Several
+sampling methods have been developed to help remedy class imbalance and
+most of them can be categorized as either up-sampling or down-sampling.
 
-Down-sampling balances the dataset by reducing the size of the abundant class(es) to match the frequencies in the least prevalent class. This method is used when the quantity of data is sufficient. By keeping all samples in the rare class and randomly selecting an equal number of samples in the abundant class, a balanced new dataset can be retrieved for further modeling. Furthermore, the reduced sample size reduces the computation burden imposed by further steps in the ML process.
+Down-sampling balances the dataset by reducing the size of the abundant
+class(es) to match the frequencies in the least prevalent class. This
+method is used when the quantity of data is sufficient. By keeping all
+samples in the rare class and randomly selecting an equal number of
+samples in the abundant class, a balanced new dataset can be retrieved
+for further modeling. Furthermore, the reduced sample size reduces the
+computation burden imposed by further steps in the ML process.
 
-On the contrary, up-sampling is used when the quantity of data is insufficient. It tries to balance the dataset by increasing the size of rarer samples. Rather than getting rid of abundant samples, new rare samples are generated by using repetition or bootstrapping (described further in Section 2.4.2).
+On the contrary, up-sampling is used when the quantity of data is
+insufficient. It tries to balance the dataset by increasing the size of
+rarer samples. Rather than getting rid of abundant samples, new rare
+samples are generated by using repetition or bootstrapping (described
+further in Section 2.4.2).
 
-Note that there is no absolute advantage of one sampling method over another. Application of these two methods depends on the use case it applies to and the data set itself. A combination of over- and under-sampling is often successful and a common approach is known as Synthetic Minority Over-Sampling Technique, or SMOTE (Chawla et al. 2002). This alternative sampling approach, as well as others, can be implemented in R (see the sampling argument in `?caret::trainControl()`). Furthermore, many ML algorithms implemented in R have class weighting schemes to remedy imbalances internally (e.g., most h2o algorithms have a weights_column and balance_classes argument).
+Note that there is no absolute advantage of one sampling method over
+another. Application of these two methods depends on the use case it
+applies to and the data set itself. A combination of over- and
+under-sampling is often successful and a common approach is known as
+Synthetic Minority Over-Sampling Technique, or SMOTE (Chawla et al.
+2002). This alternative sampling approach, as well as others, can be
+implemented in R (see the sampling argument in
+`?caret::trainControl()`). Furthermore, many ML algorithms implemented
+in R have class weighting schemes to remedy imbalances internally (e.g.,
+most h2o algorithms have a weights_column and balance_classes argument).
 
 ```{r stratified-sampling-ames}
 
@@ -389,12 +456,19 @@ ames_train  <- training(split)
 ames_test   <- testing(split)
 ```
 
-Next, we’re going to apply a k-nearest neighbor regressor to our data. To do so, we’ll use caret, which is a meta-engine to simplify the resampling, grid search, and model application processes. The following defines:
+Next, we're going to apply a k-nearest neighbor regressor to our data.
+To do so, we'll use caret, which is a meta-engine to simplify the
+resampling, grid search, and model application processes. The following
+defines:
 
- * Resampling method: we use 10-fold CV repeated 5 times.
- * Grid search: we specify the hyperparameter values to assess (k=2,3,4,…,25).
- * Model training & Validation: we train a k-nearest neighbor (`method = "knn"`) model using our pre-specified resampling procedure (`trControl = cv`), grid search (`tuneGrid = hyper_grid`), and preferred loss function (`metric = "RMSE"`).
- 
+-   Resampling method: we use 10-fold CV repeated 5 times.
+-   Grid search: we specify the hyperparameter values to assess
+    (k=2,3,4,...,25).
+-   Model training & Validation: we train a k-nearest neighbor
+    (`method = "knn"`) model using our pre-specified resampling
+    procedure (`trControl = cv`), grid search (`tuneGrid = hyper_grid`),
+    and preferred loss function (`metric = "RMSE"`).
+
 ```{r grid-search}
 # Specify resampling strategy
 cv <- trainControl(
@@ -423,10 +497,158 @@ ggplot(knn_fit)
 
 ```
 
-# Feature and Target Engineering
+# Chapter 3. Feature and Target Engineering
+
+Data preprocessing and engineering techniques generally refer to the
+addition, deletion, or transformation of data. The time spent on
+identifying data engineering needs can be significant and requires you
+to spend substantial time understanding your data...or as Leo Breiman
+said "live with your data before you plunge into modeling" (Breiman and
+others 2001, 201). Although this book primarily focuses on applying
+machine learning algorithms, feature engineering can make or break an
+algorithm's predictive ability and deserves your continued focus and
+education.
+
+We will not cover all the potential ways of implementing feature
+engineering; however, we'll cover several fundamental preprocessing
+tasks that can potentially significantly improve modeling performance.
+Moreover, different models have different sensitivities to the type of
+target and feature values in the model and we will try to highlight some
+of these concerns. For more in depth coverage of feature engineering,
+please refer to Kuhn and Johnson (2019) and Zheng and Casari (2018).
+
+## 3.1 Prerequisites
+
+This chapter leverages the following packages:
+
+```{r chap-3-libraries}
+# Helper packages
+library(dplyr)    # for data manipulation
+library(ggplot2)  # for awesome graphics
+library(visdat)   # for additional visualizations
+
+# Feature engineering packages
+library(caret)    # for various ML tasks
+library(recipes)  # for feature engineering tasks
+```
+
+We'll also continue working with the ames_train data set created in
+Section 2.7.
+
+## 3.2 Target engineering
+
+Although not always a requirement, transforming the response variable
+can lead to predictive improvement, especially with parametric models
+(which require that certain assumptions about the model be met). For
+instance, ordinary linear regression models assume that the prediction
+errors (and hence the response) are normally distributed. This is
+usually fine, except when the prediction target has heavy tails (i.e.,
+outliers) or is skewed in one direction or the other. In these cases,
+the normality assumption likely does not hold. For example, as we saw in
+the data splitting section (2.2), the response variable for the Ames
+housing data (Sale_Price) is right (or positively) skewed as illustrated
+in Figure 3.1 (ranging from \$12,789 to \$755,000). A simple linear
+model, say\
+Sale_Price = β 0 + β 1 Year_Built + ϵ , often assumes the error term\
+ϵ (and hence Sale_Price) is normally distributed; fortunately, a simple
+log (or similar) transformation of the response can often help alleviate
+this concern as Figure 3.1 illustrates.
+
+![Figure 3.1: Transforming the response variable to minimize skewness
+can resolve concerns with non-normally distributed
+errors.](images/paste-36969CDA.png)
+
+Furthermore, using a log (or other) transformation to minimize the
+response skewness can be used for shaping the business problem as well.
+For example, in the House Prices: Advanced Regression Techniques Kaggle
+competition^[11](https://bradleyboehmke.github.io/HOML/engineering.html#fn11)^,
+which used the Ames housing data, the competition focused on using a log
+transformed Sale Price response because \"...taking logs means that
+errors in predicting expensive houses and cheap houses will affect the
+result equally.\" This would be an alternative to using the root mean
+squared logarithmic error (RMSLE) loss function as discussed in Section
+[2.6](https://bradleyboehmke.github.io/HOML/process.html#model-eval).
+
+There are two main approaches to help correct for positively skewed
+target variables:
+
+**Option 1**: normalize with a log transformation. This will transform
+most right skewed distributions to be approximately normal. One way to
+do this is to simply log transform the training and test set in a
+manual, single step manner similar to:
 
 ```{r log-transformation}
-library(visdat)
+transformed_response <- log(ames_train$Sale_Price)
+```
+
+However, we should think of the preprocessing as creating a blueprint to
+be re-applied strategically. For this, you can use the **recipe**
+package or something similar (e.g., `caret::preProcess()`). This will
+not return the actual log transformed values but, rather, a blueprint to
+be applied later.
+
+```{r ames-recipe}
+# log transformation
+ames_recipe <- recipe(Sale_Price ~ ., data = ames_train) %>%
+  step_log(all_outcomes())
+
+ames_recipe
+```
+
+If your response has negative values or zeros then a log transformation
+will produce `NaN`s and `-Inf`s, respectively (you cannot take the
+logarithm of a negative number). If the nonpositive response values are
+small (say between -0.99 and 0) then you can apply a small offset such
+as in `log1p()` which adds 1 to the value prior to applying a log
+transformation (you can do the same within `step_log()` by using the
+`offset` argument). If your data consists of values ≤−1≤−1, use the
+Yeo-Johnson transformation mentioned next.
+
+```{r log1p-vs-log }
+log(-0.5)
+## [1] NaN
+log1p(-0.5)
+## [1] -0.6931472
+```
+
+**Option 2**: use a *Box Cox transformation*. A Box Cox transformation
+is more flexible than (but also includes as a special case) the log
+transformation and will find an appropriate transformation from a family
+of power transforms that will transform the variable as close as
+possible to a normal distribution (Box and Cox
+[1964](https://bradleyboehmke.github.io/HOML/engineering.html#ref-box1964analysis);
+Carroll and Ruppert
+[1981](https://bradleyboehmke.github.io/HOML/engineering.html#ref-carroll1981prediction)).
+At the core of the Box Cox transformation is an exponent, lambda (λ),
+which varies from -5 to 5. All values of λ are considered and the
+optimal value for the given data is estimated from the training data;
+The \"optimal value\" is the one which results in the best
+transformation to an approximate normal distribution. The transformation
+of the response Y has the form:
+
+y(λ)={Y^λ^−1 / λ, if λ≠0,
+
+{log(Y), if λ=0.\
+
+Be sure to compute the `lambda` on the training set and apply that same
+`lambda` to both the training and test set to minimize *data leakage*.
+The **recipes** package automates this process for you.
+
+If your response has negative values, the Yeo-Johnson transformation is
+very similar to the Box-Cox but does not require the input variables to
+be strictly positive. To apply, use `step_YeoJohnson()`.
+
+Figure
+[3.2](https://bradleyboehmke.github.io/HOML/engineering.html#fig:engineering-distribution-comparison)
+illustrates that the log transformation and Box Cox transformation both
+do about equally well in transforming `Sale_Price` to look more normally
+distributed.
+
+![Figure 3.2: Response variable
+transformations.](images/paste-11879CB0.png)
+
+```{r my-version}
+
 # non-log
 nonlog.ames = lm(Sale_Price ~ Year_Built, data=ames)
 # log-transform the Y
@@ -455,6 +677,79 @@ qq3 = ggqqplot(boxcox.ames$residuals) + ylab("residuals")
 cowplot::plot_grid(qq1,qq2,qq3, labels=c("No log", "Log", "BoxCox"))
 ```
 
+## 3.3 Dealing with missingness
+
+Data quality is an important issue for any project involving analyzing
+data. Data quality issues deserve an entire book in their own right, and
+a good reference is The Quartz guide to bad
+data.^[12](https://bradleyboehmke.github.io/HOML/engineering.html#fn12)^
+One of the most common data quality concerns you will run into is
+missing values.
+
+Data can be missing for many different reasons; however, these reasons
+are usually lumped into two categories: *informative missingness* (Kuhn
+and Johnson
+[2013](https://bradleyboehmke.github.io/HOML/engineering.html#ref-apm))
+and *missingness at random* (Little and Rubin
+[2014](https://bradleyboehmke.github.io/HOML/engineering.html#ref-little2014statistical)).
+Informative missingness implies a structural cause for the missing value
+that can provide insight in its own right; whether this be deficiencies
+in how the data was collected or abnormalities in the observational
+environment. Missingness at random implies that missing values occur
+independent of the data collection
+process^[13](https://bradleyboehmke.github.io/HOML/engineering.html#fn13)^.
+
+The category that drives missing values will determine how you handle
+them. For example, we may give values that are driven by informative
+missingness their own category (e.g., `"None"`) as their unique value
+may affect predictive performance. Whereas values that are missing at
+random may deserve
+deletion^[14](https://bradleyboehmke.github.io/HOML/engineering.html#fn14)^
+or imputation.
+
+Furthermore, different machine learning models handle missingness
+differently. Most algorithms cannot handle missingness (e.g.,
+generalized linear models and their cousins, neural networks, and
+support vector machines) and, therefore, require them to be dealt with
+beforehand. A few models (mainly tree-based), have built-in procedures
+to deal with missing values. However, since the modeling process
+involves comparing and contrasting multiple models to identify the
+optimal one, you will want to handle missing values prior to applying
+any models so that your algorithms are based on the same data quality
+assumptions.
+
+### 3.3.1 Visualizing missing values
+
+It is important to understand the distribution of missing values (i.e.,
+`NA`) in any data set. So far, we have been using a pre-processed
+version of the Ames housing data set (via the `AmesHousing::make_ames()`
+function). However, if we use the raw Ames housing data (via
+`AmesHousing::ames_raw`), there are actually 13,997 missing
+values---there is at least one missing values in each row of the
+original data!
+
+    sum(is.na(AmesHousing::ames_raw))
+    ## [1] 13997
+
+It is important to understand the distribution of missing values in a
+data set in order to determine the best approach for preprocessing. Heat
+maps are an efficient way to visualize the distribution of missing
+values for small- to medium-sized data sets. The code
+`is.na(<data-frame-name>)` will return a matrix of the same dimension as
+the given data frame, but each cell will contain either `TRUE` (if the
+corresponding value is missing) or `FALSE` (if the corresponding value
+is not missing). To construct such a plot, we can use R\'s built-in
+`heatmap()` or `image()` functions, or **ggplot2**\'s `geom_raster()`
+function, among others; Figure
+[3.3](https://bradleyboehmke.github.io/HOML/engineering.html#fig:engineering-heat-map-missingness)
+illustrates `geom_raster()`. This allows us to easily see where the
+majority of missing values occur (i.e., in the variables `Alley`,
+`Fireplace Qual`, `Pool QC`, `Fence`, and `Misc Feature`). Due to their
+high frequency of missingness, these variables would likely need to be
+removed prior to statistical analysis, or imputed. We can also spot
+obvious patterns of missingness. For example, missing values appear to
+occur within the same observations across all garage variables.
+
 ```{r missingness}
 AmesHousing::ames_raw %>%
   is.na() %>%
@@ -469,17 +764,153 @@ AmesHousing::ames_raw %>%
     xlab("Observation") +
     theme(axis.text.y  = element_text(size = 4))
 
-vis_miss(AmesHousing::ames_raw, cluster = TRUE)
 ```
-Digging a little deeper into these variables, we might notice that Garage_Cars and Garage_Area contain the value 0 whenever the other Garage_xx variables have missing values (i.e. a value of NA). This might be because they did not have a way to identify houses with no garages when the data were originally collected, and therefore, all houses with no garage were identified by including nothing. Since this missingness is informative, it would be appropriate to impute NA with a new category level (e.g., "None") for these garage variables. Circumstances like this tend to only become apparent upon careful descriptive and visual examination of the data!
 
-```{r merge-very-low-count-categories}
+Digging a little deeper into these variables, we might notice that
+Garage_Cars and Garage_Area contain the value 0 whenever the other
+Garage_xx variables have missing values (i.e. a value of NA). This might
+be because they did not have a way to identify houses with no garages
+when the data were originally collected, and therefore, all houses with
+no garage were identified by including nothing. Since this missingness
+is informative, it would be appropriate to impute NA with a new category
+level (e.g., "None") for these garage variables. Circumstances like this
+tend to only become apparent upon careful descriptive and visual
+examination of the data!
+
+```{r garage-select-cols}
+
+AmesHousing::ames_raw %>% 
+  filter(is.na(`Garage Type`)) %>% 
+  dplyr::select(`Garage Type`, `Garage Cars`, `Garage Area`)
+
+```
+
+The `vis_miss()` function in R package `visdat` (Tierney
+[2019](https://bradleyboehmke.github.io/HOML/engineering.html#ref-R-visdat))
+also allows for easy visualization of missing data patterns (with
+sorting and clustering options). We illustrate this functionality below
+using the raw Ames housing data (Figure
+[3.4](https://bradleyboehmke.github.io/HOML/engineering.html#fig:engineering-missingness-visna)).
+The columns of the heat map represent the 82 variables of the raw data
+and the rows represent the observations. Missing values (i.e., `NA`) are
+indicated via a black cell. The variables and `NA` patterns have been
+clustered by rows (i.e., `cluster = TRUE`).
+
+```{r chap3-vis-miss}
+vis_miss(AmesHousing::ames_raw, cluster = TRUE) + 
+  ggtitle('Figure 3.4: Visualizing missing data patterns in the raw Ames housing data.') +
+  theme(axis.text = element_text(size = 4))
+```
+
+Data can be missing for different reasons. Perhaps the values were never
+recorded (or lost in translation), or it was recorded in error (a common
+feature of data entered by hand). Regardless, it is important to
+identify and attempt to understand how missing values are distributed
+across a data set as it can provide insight into how to deal with these
+observations.
+
+### 3.3.2 Imputation
+
+*Imputation* is the process of replacing a missing value with a
+substituted, \"best guess\" value. Imputation should be one of the first
+feature engineering steps you take as it will affect any downstream
+preprocessing^[15](https://bradleyboehmke.github.io/HOML/engineering.html#fn15)^.
+
+#### 3.3.2.1 Estimated statistic
+
+An elementary approach to imputing missing values for a feature is to
+compute descriptive statistics such as the mean, median, or mode (for
+categorical) and use that value to replace `NA`s. Although
+computationally efficient, this approach does not consider any other
+attributes for a given observation when imputing (e.g., a female patient
+that is 63 inches tall may have her weight imputed as 175 lbs since that
+is the average weight across all observations which contains 65% males
+that average a height of 70 inches).
+
+An alternative is to use grouped statistics to capture expected values
+for observations that fall into similar groups. However, this becomes
+infeasible for larger data sets. Modeling imputation can automate this
+process for you and the two most common methods include K-nearest
+neighbor and tree-based imputation, which are discussed next.
+
+However, it is important to remember that imputation should be performed
+**within the resampling process** and as your data set gets larger,
+repeated model-based imputation can compound the computational demands.
+Thus, you must weigh the pros and cons of the two approaches. The
+following would build onto our `ames_recipe` and impute all missing
+values for the `Gr_Liv_Area` variable with the median value:
+
+```{r median-impute}
+ames_recipe %>%
+   # step_medianimpute(Gr_Liv_Area) # Error: `step_medianimpute()` was deprecated in recipes 0.1.16 and is now defunct.
+  step_impute_median(Gr_Liv_Area) 
+```
+
+##  3.4 Feature filtering
+
+In many data analyses and modeling projects we end up with hundreds or
+even thousands of collected features. From a practical perspective, a
+model with more features often becomes harder to interpret and is costly
+to compute. Some models are more resistant to non-informative predictors
+(e.g., the Lasso and tree-based methods) than others as illustrated in
+Figure
+[3.6](https://bradleyboehmke.github.io/HOML/engineering.html#fig:engineering-accuracy-comparison).^[16](https://bradleyboehmke.github.io/HOML/engineering.html#fn16)^
+
+![Figure 3.6: Test set RMSE profiles when non-informative predictors are
+added.](images/paste-AD4E161F.png)\
+Figure 3.6: Test set RMSE profiles when non-informative predictors are
+added.
+
+## 3.5 Numeric feature engineering
+
+Numeric features can create a host of problems for certain models when
+their distributions are skewed, contain outliers, or have a wide range
+in magnitudes. Tree-based models are quite immune to these types of
+problems in the feature space, but many other models (e.g., GLMs,
+regularized regression, KNN, support vector machines, neural networks)
+can be greatly hampered by these issues. Normalizing and standardizing
+heavily skewed features can help minimize these concerns.
+
+## 3.6 Categorical feature engineering
+
+Most models require that the predictors take numeric form. There are
+exceptions; for example, tree-based models naturally handle numeric or
+categorical features. However, even tree-based models can benefit from
+preprocessing categorical features. The following sections will discuss
+a few of the more common approaches to engineer categorical features.
+
+### 3.6.1 Lumping
+
+Sometimes features will contain levels that have very few observations.
+For example, there are 28 unique neighborhoods represented in the Ames
+housing data but several of them only have a few observations.
+
+Even numeric features can have similar distributions. For example,
+`Screen_Porch` has 92% values recorded as zero (zero square footage
+meaning no screen porch) and the remaining 8% have unique dispersed
+values.
+
+```{r}
+count(ames_train, Neighborhood) %>% arrange(n)
+```
+
+Even numeric features can have similar distributions. For example,
+`Screen_Porch` has 92% values recorded as zero (zero square footage
+meaning no screen porch) and the remaining 8% have unique dispersed
+values.
+
+```{r }
+count(ames_train, Screen_Porch) %>% arrange(n)
+
+```
+
+```{r dck-messing-around}
 
 
 table(ames_train$Neighborhood) %>% proportions %>% as.data.frame() %>% filter(Freq > .01)
 
 
-# just messing around here with clustering instead of "othering"
+# DCK: just messing around here with clustering instead of "othering"
 k.last = kmeans(ames_train$Screen_Porch,centers = 3) 
 # ranges covered by each cluster
 data.frame(x=ames_train$Screen_Porch, k= k.last$cluster) %>% group_by(k) %>% summarize(lower=min(x),upper=max(x),n=length(x))
@@ -495,7 +926,20 @@ table(ames_train$Screen_Porch == 0) %>% proportions
 # 
 #      FALSE       TRUE 
 # 0.08784773 0.91215227 
+```
 
+Sometimes we can benefit from collapsing, or \"lumping\" these into a
+lesser number of categories. In the above examples, we may want to
+collapse all levels that are observed in less than 10% of the training
+sample into an \"other\" category. We can use `step_other()` to do so.
+However, lumping should be used sparingly as there is often a loss in
+model performance (Kuhn and Johnson
+[2013](https://bradleyboehmke.github.io/HOML/engineering.html#ref-apm)).
+
+Tree-based models often perform exceptionally well with high cardinality
+features and are not as impacted by levels with small representation.
+
+```{r lumping}
 # Lump levels for two features
 lumping <- recipe(Sale_Price ~ ., data = ames_train) %>%
   step_other(Neighborhood, threshold = 0.01, 
