@@ -8,6 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(pheatmap)
 ```
 
 ## Get data
@@ -22,6 +23,8 @@ colnames(mx) <- rsummary.out$factor2
 rownames(mx) <- rsummary.out$factor1
 mx[ rsummary.out$factor1, rsummary.out$factor2] = rsummary.out$sig_ave
 ```
+
+
 
 
 
