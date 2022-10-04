@@ -1,0 +1,28 @@
+---
+title: "IntervalStats analysis"
+author: "David C. King / Wynn Webster"
+date: "2022-10-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+## Get data
+
+
+
+```{r data}
+rsummary.out = read.table("DATA/Kudron/Example_Table", header=T)
+
+mx = matrix(NA, nrow = 1000, ncol = 1000)
+colnames(mx) <- rsummary.out$factor2
+rownames(mx) <- rsummary.out$factor1
+mx[ rsummary.out$factor1, rsummary.out$factor2] = rsummary.out$sig_ave
+```
+
+
+
+
