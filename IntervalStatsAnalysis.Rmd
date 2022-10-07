@@ -15,25 +15,48 @@ library(amap)
 ```
 
 ## Get data
+```{r alldata}
+alldata = read.table('DATA/alldata')
+colnames(alldata) <- c("factor1", "factor2", "sig1", "sig2", "sig_ave")
+alldata = alldata %>% group_by(factor1, factor2) %>% summarise(sig_ave = max(sig_ave)) 
 
 
+allfactors = unique(c(alldata[[1]], alldata[[2]]))
 
-```{r data}
-rsummary.out = read.table("DATA/Kudron/Example_Table", header=T)
+matrix_tibble = pivot_wider(alldata, 
+                            values_from = 'sig_ave', 
+                            id_cols = c('factor1'), 
+                            names_from = 'factor2')
+head(matrix_tibble)
 
-mx = matrix(NA, nrow = 1000, ncol = 1000)
-colnames(mx) <- rsummary.out$factor2
-rownames(mx) <- rsummary.out$factor1
-mx[ rsummary.out$factor1, rsummary.out$factor2] = rsummary.out$sig_ave
+# remove "factor1" column
+mx = as.matrix(matrix_tibble[2:424])
 
-# Create test matrix
-test = matrix(rnorm(200), 20, 10)
-test[1:10, seq(1, 10, 2)] = test[1:10, seq(1, 10, 2)] + 3
-test[11:20, seq(2, 10, 2)] = test[11:20, seq(2, 10, 2)] + 2
-test[15:20, seq(2, 10, 2)] = test[15:20, seq(2, 10, 2)] + 4
-colnames(test) = paste("Test", 1:10, sep = "")
-rownames(test) = paste("Gene", 1:20, sep = "")
 
+dim(mx)
+mx[1:10,1:10]
+# this is essentially a half-matrix with one less row and column
+# the following lines fill out the matrx
+mx2 = cbind(matrix(NA,ncol=1, nrow=423),mx)
+mx3 = rbind(mx2, matrix(NA,nrow=1, ncol=424))
+
+# full matrix
+mx3[lower.tri(mx3)] <- mx3[upper.tri(mx3)]
+rownames(mx3) <- colnames(mx3)
+mx3[1:10,1:10]
+```
+
+```{r translate-to-scoring-matrix}
+# need: a matrix that has evenly distributed values
+
+# need: values must be distances: 0 is complete similarity, dissimilarity increasing > 0
+
+# need: must be a "dist" object for hclust
+
+# suggestion: try the smacof, sim2diss function (similarity to distance)
+```
+
+```{r heatmaps}
 # Draw heatmaps
 pheatmap(test)
 pheatmap(test, kmeans_k = 2)
