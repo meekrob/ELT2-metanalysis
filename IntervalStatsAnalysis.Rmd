@@ -47,13 +47,29 @@ mx3[1:10,1:10]
 ```
 
 ```{r translate-to-scoring-matrix}
-# need: a matrix that has evenly distributed values
+install.packages("smacof")
+library(smacof)
+
+# need: a matrix that has evenly distributed values: hclust(log(mx3))
 
 # need: values must be distances: 0 is complete similarity, dissimilarity increasing > 0
 
 # need: must be a "dist" object for hclust
 
-# suggestion: try the smacof, sim2diss function (similarity to distance)
+# suggestion: try the smacof, sim2diss function (similarity to distance): sim2diss(s, method = "corr", to.dist = FALSE)
+
+#corr, confusion, neglog, probability all error messages
+mx3[is.na(mx3)] <- 0
+
+check = (log(mx3+1))
+is.na(check) %>% table()
+
+mx4 = sim2diss((log(mx3+1)), method = 8, to.dist = TRUE)
+hclust(mx4)
+
+library(cluster)
+mx5 = agnes(mx4, stand = TRUE)
+plot(mx5)
 ```
 
 ```{r heatmaps}
