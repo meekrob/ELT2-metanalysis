@@ -10,8 +10,13 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(pheatmap)
 library(dendsort)
-install.packages("amap")
+#install.packages("amap")
 library(amap)
+#install.packages("smacof")
+library(smacof)
+library(dendextend)
+library(ggpubr) ## ggqqplot
+library(cluster) # for agnes (hierarchical clustering)
 ```
 
 ## Get data
@@ -40,36 +45,108 @@ mx[1:10,1:10]
 mx2 = cbind(matrix(NA,ncol=1, nrow=423),mx)
 mx3 = rbind(mx2, matrix(NA,nrow=1, ncol=424))
 
+# re-add the omitted row/col name
+colnames(mx3) <- allfactors
+rownames(mx3) <- allfactors
+
 # full matrix
 mx3[lower.tri(mx3)] <- mx3[upper.tri(mx3)]
 rownames(mx3) <- colnames(mx3)
 mx3[1:10,1:10]
 ```
 
+```{r filtering-pre-log}
+na_counts = apply(mx3, 1, function(x) { sum(is.na(x))})
+table(na_counts)
+```
+
+
+- need: a matrix that has evenly distributed values: hclust(log(mx3))
+
+- need: values must be distances: 0 is complete similarity, dissimilarity increasing > 0
+
+- need: must be a "dist" object for hclust
+
+- suggestion: try the smacof, sim2diss function (similarity to distance): sim2diss(s, method = "corr", to.dist = FALSE)
+
 ```{r translate-to-scoring-matrix}
-install.packages("smacof")
-library(smacof)
 
-# need: a matrix that has evenly distributed values: hclust(log(mx3))
 
-# need: values must be distances: 0 is complete similarity, dissimilarity increasing > 0
+log.scores = log(mx3+1)
+max_score = max(log.scores, na.rm=T)
+log.scores[diag(log.scores)] <- ceiling(max_score) # set the self comparisons to a higher (but close) number than what is observed
 
-# need: must be a "dist" object for hclust
+log.scores[is.na(log.scores)] <- 0 # take care of the rest of the NAs (they are comparisons that weren't present ini thee input data fle)
 
-# suggestion: try the smacof, sim2diss function (similarity to distance): sim2diss(s, method = "corr", to.dist = FALSE)
 
-#corr, confusion, neglog, probability all error messages
-mx3[is.na(mx3)] <- 0
 
-check = (log(mx3+1))
-is.na(check) %>% table()
+```
 
-mx4 = sim2diss((log(mx3+1)), method = 8, to.dist = TRUE)
-hclust(mx4)
+```{r sim2diss-methods}
+allvals = data.frame()
 
-library(cluster)
-mx5 = agnes(mx4, stand = TRUE)
-plot(mx5)
+#dist_scalar = sim2diss(log.scores, method = 8, to.dist = TRUE)
+
+# methods that do a log transformation (use the original data)
+dist_scalar = sim2diss(mx3, method = "Gaussian")
+values = dist_scalar[upper.tri(dist_scalar, diag = T)]
+range(values, na.rm = T)
+allvals = rbind(allvals, data.frame(x=values, method="Gaussian"))
+
+dist_scalar = sim2diss(mx3, method = "exp")
+values = dist_scalar[upper.tri(dist_scalar, diag = T)]
+range(values, na.rm = T)
+allvals = rbind(allvals, data.frame(x=values, method="exp"))
+
+# methods that don't involve log
+dist_scalar = sim2diss(log.scores, method = "reverse")
+values = dist_scalar[upper.tri(dist_scalar, diag = T)]
+range(values, na.rm = T)
+allvals = rbind(allvals, data.frame(x=values, method="reverse"))
+
+dist_scalar = sim2diss(log.scores, method = "reciprocal")
+values = dist_scalar[upper.tri(dist_scalar, diag = T)]
+range(values, na.rm = T)
+allvals = rbind(allvals, data.frame(x=values, method="reciprocal"))
+
+dist_scalar = sim2diss(log.scores, method = "membership")
+values = dist_scalar[upper.tri(dist_scalar, diag = T)]
+range(values, na.rm = T)
+allvals = rbind(allvals, data.frame(x=values, method="membership"))
+
+# ranks will always give a uniform list from 1:n, which can't be plotted on the same range as the others and would be useless anyway because of the uniform distribution
+# dist_scalar = sim2diss(log.scores, method = "ranks")
+# values = dist_scalar[upper.tri(dist_scalar, diag = T)]
+# range(values, na.rm = T)
+# allvals = rbind(allvals, data.frame(x=values, method="ranks"))
+
+dist_scalar = sim2diss(log.scores, method = 8)
+df = data.frame(x=dist_scalar[upper.tri(dist_scalar, diag = T)], method="z=8")
+allvals = rbind(allvals, data.frame(x=df$x, method="z=8"))
+range(df$x, na.rm = T)
+
+
+ggplot(allvals, aes(x=x)) + geom_histogram() + facet_wrap(~method)  + xlim(c(-7,7)) + ggtitle('Different sim2diss methods')           
+
+```
+
+```{r mds}
+mds.coor = cmdscale(dist_scalar)
+mds.coor.df = data.frame(cmdscale(dist_scalar),factorname=allfactors)
+ggplot(mds.coor.df, aes(x=X1, y=X2,label=allfactors)) + geom_point() + geom_label_repel(max.overlaps=5)
+```
+
+
+```{r hclustering}
+hist(dist_scalar)
+hc = hclust(dist_scalar)
+plot(hc)
+```
+
+
+
+#mx5 = agnes(mx4, stand = TRUE)
+#plot(mx5)
 ```
 
 ```{r heatmaps}
