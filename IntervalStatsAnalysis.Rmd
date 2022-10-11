@@ -8,31 +8,101 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
-library(pheatmap)
-library(dendsort)
+library(magrittr)
+# clustering
 #install.packages("amap")
 library(amap)
 #install.packages("smacof")
 library(smacof)
-library(dendextend)
-library(ggpubr) ## ggqqplot
 library(cluster) # for agnes (hierarchical clustering)
+#install.packages('fpc')
+library(fpc) # for clusterboot
+# visualization
+library(pheatmap)
+library(dendextend)
+library(ggplot2)
+library(ggrepel)
+library(ggpubr) ## ggqqplot
+library(dendsort)
 ```
 
+## cosine dist function
+https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.cosine.html
+
+Use this link for the computation: https://stats.stackexchange.com/questions/31565/compute-a-cosine-dissimilarity-matrix-in-r/367216#367216
+
+```{r cos-dist}
+distance.cosine = function(u,v) {
+  1 - ((u%*%v) / (norm(u,"2")*norm(v,"2")))
+}
+
+# https://stats.stackexchange.com/questions/31565/compute-a-cosine-dissimilarity-matrix-in-r/367216#367216
+df_to_cosine_dist = function(df) {
+  M = as.matrix(df)
+  sim = sqrt(rowSums(M*M))
+  sim = sim %*% t(sim)
+  as.dist(1-sim)
+}
+
+```
+
+
+
+
 ## Get data
+
+```{r genelists}
+neuro.genelist = c('unc-42_LE',
+          'ces-1_LE',
+          'ceh-9_L3',
+          'fkh-10_L4',
+          'fkh-10_L1',
+          'fkh-10_L3',
+          'ces-1_L4',
+          'ces-1_L1')
+synMuvB.genelist = read.table('synMuvB.list')[[1]]
+intestine.genelist = read.table('intestine.genelist')[[1]]
+muscle.genelist = read.table('muscle.list')[[1]]
+germline.genelist = read.table('germline.genelist')[[1]]
+```
+
 ```{r alldata}
 alldata = read.table('DATA/alldata')
 colnames(alldata) <- c("factor1", "factor2", "sig1", "sig2", "sig_ave")
-alldata = alldata %>% group_by(factor1, factor2) %>% summarise(sig_ave = max(sig_ave)) 
+
+alldata = alldata %>% group_by(factor1, factor2) %>% summarise(sig_min = min(sig1,sig2), sig_max=max(sig1,sig2), sig_ave = max(sig_ave)) 
 
 
 allfactors = unique(c(alldata[[1]], alldata[[2]]))
+```
 
+```{r reduce-inspect-clusters}
+message("SynMuvB: ", sum(synMuvB.genelist %in% allfactors), " genes out of ", length(synMuvB.genelist), " in IntervalStats data.")
+message("Intestine: ", sum(intestine.genelist %in% allfactors), " genes out of ", length(intestine.genelist), " in IntervalStats data.")
+message("Muscle: ", sum(muscle.genelist %in% allfactors), " genes out of ", length(muscle.genelist), " in IntervalStats data.")
+message("Neuro: ", sum(neuro.genelist %in% allfactors), " genes out of ", length(neuro.genelist), " in IntervalStats data.")
+message("Germline: ", sum(germline.genelist %in% allfactors), " genes out of ", length(germline.genelist), " in IntervalStats data.")
+```
+
+```{r reduce-kudron-clusters}
+synMuvB.genelist = synMuvB.genelist[synMuvB.genelist %in% allfactors]
+intestine.genelist = intestine.genelist[intestine.genelist %in% allfactors]
+muscle.genelist = muscle.genelist[muscle.genelist %in% allfactors]
+germline.genelist = germline.genelist[germline.genelist %in% allfactors]
+neuro.genelist = neuro.genelist[neuro.genelist %in% allfactors]
+```
+
+
+```{r filter-data}
+
+```
+
+```{r rectangularize-matrix}
 matrix_tibble = pivot_wider(alldata, 
                             values_from = 'sig_ave', 
                             id_cols = c('factor1'), 
                             names_from = 'factor2')
-head(matrix_tibble)
+head(matrix_tibble[,1:10])
 
 # remove "factor1" column
 mx = as.matrix(matrix_tibble[2:424])
@@ -127,20 +197,63 @@ range(df$x, na.rm = T)
 
 
 ggplot(allvals, aes(x=x)) + geom_histogram() + facet_wrap(~method)  + xlim(c(-7,7)) + ggtitle('Different sim2diss methods')           
+```
+
+
+```{r hclust-diagnostic, eval=FALSE}
+bench=clusterbenchstats(dist_scalar, 2:5, clustermethod="hclustCBI", clustermethodpars=list(list(method="average")
+                                                                                            ))
 
 ```
 
 ```{r mds}
-mds.coor = cmdscale(dist_scalar)
-mds.coor.df = data.frame(cmdscale(dist_scalar),factorname=allfactors)
-ggplot(mds.coor.df, aes(x=X1, y=X2,label=allfactors)) + geom_point() + geom_label_repel(max.overlaps=5)
+dist.methods = list(
+  cosine = proxy::dist(log.scores, method=distance.cosine),
+  euclidean = dist(log.scores, method="euclidean"),
+  maximum = dist(log.scores, method="maximum"),
+#  manhattan = dist(log.scores, method="manhattan"), # most things are on widely different scales, so 
+#  canberra = dist(log.scores, method="canberra"),   # different subsets have to be plotted at once
+  binary = dist(log.scores, method="binary"),
+  minkowski = dist(log.scores, method="minkowski"))
+
+
+
+all.mds.df = data.frame()
+
+
+for (method in names(dist.methods))
+{
+  dist.scores = dist.methods[[method]]
+  mds.coord = cmdscale(dist.scores)
+  mds.coord.df = data.frame(mds.coord,factorname=allfactors, method=method)
+  mds.coord.df$kudron_cluster = "none"
+  mds.coord.df %<>% mutate(kudron_cluster = ifelse(factorname %in% neuro.genelist, 
+                                                   "neuro", kudron_cluster))
+  mds.coord.df %<>% mutate(kudron_cluster = ifelse(factorname %in% muscle.genelist, 
+                                                   "muscle", kudron_cluster))
+  mds.coord.df %<>% mutate(kudron_cluster = ifelse(factorname %in% intestine.genelist, 
+                                                   "intestine", kudron_cluster))
+  mds.coord.df %<>% mutate(kudron_cluster = ifelse(factorname %in% germline.genelist, 
+                                                   "germline", kudron_cluster))
+  mds.coord.df %<>% mutate(kudron_cluster = ifelse(factorname %in% synMuvB.genelist, 
+                                                   "synMuvB", kudron_cluster))
+  mds.coord.df$kudron_cluster = factor(mds.coord.df$kudron_cluster)
+  all.mds.df = rbind(all.mds.df, mds.coord.df)
+}
+
+ggplot(all.mds.df, aes(x=X1, y=X2, color=kudron_cluster)) + geom_point(alpha=ifelse(all.mds.df$kudron_cluster=="none", 0.1,1)) + facet_wrap(~method)
 ```
 
 
 ```{r hclustering}
 hist(dist_scalar)
-hc = hclust(dist_scalar)
-plot(hc)
+hc = hclust(as.dist(dist_scalar))
+hc4 = cutree(hc,4)
+
+mds.coord.df$hc4 = factor(hc4)
+
+ggplot(mds.coord.df, aes(x=X1, y=X2,label=allfactors,  color=hc4)) + geom_point()
+
 ```
 
 
