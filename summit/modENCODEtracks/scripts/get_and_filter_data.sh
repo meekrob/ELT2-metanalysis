@@ -53,6 +53,7 @@ mkdir -vp $RUNLIST_DIR
 # STEP 1. DOWNLOAD BIGBED FILES, ADD THE FACTOR AND (CONDENSED) STAGE NAMES TO THE ACCESSION, AND REPLACE UNDESIRABLE CHARACTERS: () AND /
 if true
 then
+    # it will skip files previously downloaded
     python $SCRIPT_DIR/trackDbReader.py $TRACKDB $DATA_OUT
 fi # end STEP 1
 
