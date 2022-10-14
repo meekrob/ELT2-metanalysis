@@ -11,6 +11,21 @@ write_dir = sys.argv[2]
 if not os.path.exists(write_dir):
     os.mkdir(write_dir)
 
+FILE_VERSIONS = {}
+
+def version_dups(filename):
+    # some input files are duplicated in both factor name and stage, and differentiated only by accession number
+    # keep track of names and increment versions
+
+    if filename not in FILE_VERSIONS:
+        FILE_VERSIONS[ filename ] = 0
+        return filename
+
+    version = FILE_VERSIONS[ filename ] + 1
+    FILE_VERSIONS[ filename ] = version
+    return filename.replace('.bb', "-%d.bb" % version)
+    
+
 def processRecord(record):
     # search the record for entries containing "Combined Optimal" in longLabel. Example:
     """
@@ -47,8 +62,12 @@ def processRecord(record):
         filename = filename.replace('dauer', 'D4')
 
         factor = filename.split('_')[0]
-        print("downloading", factor, filename, record['track'], record['bigDataUrl'], file=sys.stderr)
-        urllib.request.urlretrieve(record['bigDataUrl'], os.path.join(write_dir,filename)) 
+        filename = version_dups(filename)
+        if os.path.exists( filename ):
+            print("skipping", factor, filename, record['track'], ": it already exists") # from jobs timing out
+        else:
+            print("downloading", factor, filename, record['track'], record['bigDataUrl'], file=sys.stderr)
+            urllib.request.urlretrieve(record['bigDataUrl'], os.path.join(write_dir,filename)) 
     
 
 # each line that starts with "track" is a new record, therefore ending the previous one 
