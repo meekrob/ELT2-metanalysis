@@ -29,8 +29,11 @@ SD=$PROJECTROOT/script_data
 # PEAK CLUSTERS WITH LESS THAN 40 FACTORS BOUND AT THE SAME (OR OVERLAPPING) LOCATION
 PEAKCLUSTERS=$SD/modENCODE.peakCluster.lt40.bed # supplied by the repo
 TRACKDB=$SD/worm_trackDb.txt # supplied by REPO
+
+# if you change these, you must also change them in AnalyzeGenomicOverlaps.sh
 RUNLIST_ROOT=pairwise.runlist
 RUNLIST_DIR=$PROJECTROOT/data/runlist
+
 runlist=${RUNLIST_DIR}/${RUNLIST_ROOT}.$(date +"%Y-%m-%d").txt
 
 # OUTPUT DIRECTORIES
