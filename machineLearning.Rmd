@@ -563,9 +563,9 @@ response skewness can be used for shaping the business problem as well.
 For example, in the House Prices: Advanced Regression Techniques Kaggle
 competition^[11](https://bradleyboehmke.github.io/HOML/engineering.html#fn11)^,
 which used the Ames housing data, the competition focused on using a log
-transformed Sale Price response because \"...taking logs means that
+transformed Sale Price response because "...taking logs means that
 errors in predicting expensive houses and cheap houses will affect the
-result equally.\" This would be an alternative to using the root mean
+result equally." This would be an alternative to using the root mean
 squared logarithmic error (RMSLE) loss function as discussed in Section
 [2.6](https://bradleyboehmke.github.io/HOML/process.html#model-eval).
 
@@ -622,9 +622,9 @@ Carroll and Ruppert
 At the core of the Box Cox transformation is an exponent, lambda (λ),
 which varies from -5 to 5. All values of λ are considered and the
 optimal value for the given data is estimated from the training data;
-The \"optimal value\" is the one which results in the best
-transformation to an approximate normal distribution. The transformation
-of the response Y has the form:
+The "optimal value" is the one which results in the best transformation
+to an approximate normal distribution. The transformation of the
+response Y has the form:
 
 y(λ)={Y^λ^−1 / λ, if λ≠0,
 
@@ -738,8 +738,8 @@ values for small- to medium-sized data sets. The code
 `is.na(<data-frame-name>)` will return a matrix of the same dimension as
 the given data frame, but each cell will contain either `TRUE` (if the
 corresponding value is missing) or `FALSE` (if the corresponding value
-is not missing). To construct such a plot, we can use R\'s built-in
-`heatmap()` or `image()` functions, or **ggplot2**\'s `geom_raster()`
+is not missing). To construct such a plot, we can use R's built-in
+`heatmap()` or `image()` functions, or **ggplot2**'s `geom_raster()`
 function, among others; Figure
 [3.3](https://bradleyboehmke.github.io/HOML/engineering.html#fig:engineering-heat-map-missingness)
 illustrates `geom_raster()`. This allows us to easily see where the
@@ -812,7 +812,7 @@ observations.
 ### 3.3.2 Imputation
 
 *Imputation* is the process of replacing a missing value with a
-substituted, \"best guess\" value. Imputation should be one of the first
+substituted, "best guess" value. Imputation should be one of the first
 feature engineering steps you take as it will affect any downstream
 preprocessing^[15](https://bradleyboehmke.github.io/HOML/engineering.html#fn15)^.
 
@@ -846,7 +846,7 @@ ames_recipe %>%
   step_impute_median(Gr_Liv_Area) 
 ```
 
-##  3.4 Feature filtering
+## 3.4 Feature filtering
 
 In many data analyses and modeling projects we end up with hundreds or
 even thousands of collected features. From a practical perspective, a
@@ -885,22 +885,40 @@ Sometimes features will contain levels that have very few observations.
 For example, there are 28 unique neighborhoods represented in the Ames
 housing data but several of them only have a few observations.
 
-Even numeric features can have similar distributions. For example,
-`Screen_Porch` has 92% values recorded as zero (zero square footage
-meaning no screen porch) and the remaining 8% have unique dispersed
-values.
-
-```{r}
+```{r lumping-low-counts}
 count(ames_train, Neighborhood) %>% arrange(n)
+## # A tibble: 28 x 2
+##    Neighborhood                                n
+##    <fct>                                   <int>
+##  1 Landmark                                    1
+##  2 Green_Hills                                 2
+##  3 Greens                                      7
+##  4 Blueste                                     9
+##  5 Northpark_Villa                            17
+##  6 Briardale                                  18
+##  7 Veenker                                    20
+##  8 Bloomington_Heights                        21
+##  9 South_and_West_of_Iowa_State_University    30
+## 10 Meadow_Village                             30
+## # … with 18 more rows
 ```
 
-Even numeric features can have similar distributions. For example,
-`Screen_Porch` has 92% values recorded as zero (zero square footage
-meaning no screen porch) and the remaining 8% have unique dispersed
-values.
-
-```{r }
+```{r lumping-numeric-low-counts}
 count(ames_train, Screen_Porch) %>% arrange(n)
+## # A tibble: 93 x 2
+##    Screen_Porch     n
+##           <int> <int>
+##  1           40     1
+##  2           80     1
+##  3           92     1
+##  4           94     1
+##  5           99     1
+##  6          104     1
+##  7          109     1
+##  8          110     1
+##  9          111     1
+## 10          117     1
+## # … with 83 more rows
 
 ```
 
@@ -928,10 +946,10 @@ table(ames_train$Screen_Porch == 0) %>% proportions
 # 0.08784773 0.91215227 
 ```
 
-Sometimes we can benefit from collapsing, or \"lumping\" these into a
+Sometimes we can benefit from collapsing, or "lumping" these into a
 lesser number of categories. In the above examples, we may want to
 collapse all levels that are observed in less than 10% of the training
-sample into an \"other\" category. We can use `step_other()` to do so.
+sample into an "other" category. We can use `step_other()` to do so.
 However, lumping should be used sparingly as there is often a loss in
 model performance (Kuhn and Johnson
 [2013](https://bradleyboehmke.github.io/HOML/engineering.html#ref-apm)).
