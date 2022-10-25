@@ -1,0 +1,66 @@
+---
+title: "HOT to Factor List"
+author: "David C. King"
+date: "4/5/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## HOT regions data
+
+The HOT regions data contains a large bed-like file with each line pertaining to
+a region where several factors bound in the modENCODE project. As opposed to just containing the HOT regions (the most promiscuously bound), all such regions are included, even those which are bound by a single factor. For each interval, two semicolon-delimited lists of factors are present: one in the comprehensive interval of the factors binding, and one in the core.
+
+Therefore, this BED-like file can be converted into a table of which factors are bound at each region. Stage information is not retained here, but this is a good way to get at the overall data, first-pass.
+
+```{r HOT-regions}
+HOT = read.table('../../../DATA/HOTregions.ce11.bedPlusData')
+```
+
+```{r create-table}
+col1 = apply(data.frame(1:nrow(HOT), HOT[[13]]), 1, 
+      function(x) {
+        y = expand.grid(x[[1]], # will be index of HOT region repeated by the number of...:
+                    strsplit(x[[2]],';')[[1]] # factors parsed by strsplit
+                    )
+        y[,1]
+        }
+) 
+col2 = apply(data.frame(1:nrow(HOT), HOT[[13]]), 1, 
+      function(x) {
+        y = expand.grid(x[[1]], # will be index of HOT region repeated by the number of...:
+                    strsplit(x[[2]],';')[[1]] # factors parsed by strsplit
+                    )
+        y[,2]
+        }
+)
+
+column1 = as.integer(unlist(col1))
+column2 = as.character(unlist(col2))
+hitlist = table(data.frame(column1,column2))
+
+
+```
+
+```{r make-encode-table}
+# hitlist has to be deconstructed into a long vector and then reconstructed, otherwise
+# all attempts to convert to a dataframe automatically make it in long format (basically reversing 'table')
+hitlist.mx = matrix(c(hitlist), nrow=nrow(hitlist))
+colnames(hitlist.mx) <- colnames(hitlist)
+leftside = HOT[,c(1,7,8,4,5,6)] # use the core start and end for the interval
+colnames(leftside) <- c("chrom","start","end","i","score",".")
+
+
+ALLENCODE = cbind(leftside, as.data.frame(hitlist.mx))
+```
+
+```{r write-data}
+cnames = colnames(ALLENCODE)
+cnames[1] <- "#chrom"
+colnames(ALLENCODE) <- cnames
+write.table(ALLENCODE, file="all.modENCODE.binding.bed", quote=F, row.names = F, col.names=T,sep="\t")
+```
+
