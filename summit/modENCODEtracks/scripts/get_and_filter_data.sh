@@ -69,7 +69,7 @@ then
     for bb in $(ls $DATA_OUT/*.bb)
     do
         bed=${bb/.bb/.bed}
-        bigBedToBed $bb $bed && rm $bb
+        bigBedToBed $bb $bed && rm $bb # conda: ucsc-bigbedtobed          377                  ha8a8165_3    bioconda
         bed_gz=${bed}.gz
         [ $bed -nt $bed_gz ] && gzip -f $bed # -nt: newer than
 
