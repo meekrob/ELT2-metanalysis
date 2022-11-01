@@ -19,22 +19,20 @@ fisher.out = lapply( allfiles,
     fisher.obj = fisher.test(tbl)
     pvalue<-fisher.obj$p.value
     interesting.value = tbl[1,2]
-    list(
+    data.frame(
         tf.name=factorname,
         pval=pvalue, 
          #table=tbl, 
          #fisher=fisher.obj, 
-         iv=interesting.value) # last statement- no return needed
+        TF.bound.count.ELT2unbound=interesting.value) # last statement- no return needed
   
 })
 
-fisher.out$`ahr-1_LE`
-
 # get this from a list to a workable data frame
-fisher.array = do.call("rbind", fisher.out)
-fisher.df = data.frame(
-                       pval = unlist(fisher.array[,2]),
-                       TF.bound.count.ELT2unbound = unlist(fisher.array[,3]))
+fisher.df = do.call("rbind", fisher.out)
+# fisher.df = data.frame(
+#                        pval = unlist(fisher.array[,2]),
+#                        TF.bound.count.ELT2unbound = unlist(fisher.array[,3]))
 
 fisher.df = fisher.df[! is.na(fisher.df$pval),]
 
