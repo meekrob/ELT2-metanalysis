@@ -1,4 +1,5 @@
-
+library(dplyr)
+library(stringr)
 allfiles = list.files('summit/modENCODEtracks/data/intersections',full.names =TRUE)
 factornames = lapply(str_split(allfiles, "[/.]"), function(x) x[[5]]) %>% unlist()
 names(allfiles) = factornames
