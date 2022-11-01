@@ -30,9 +30,7 @@ fisher.out = lapply( allfiles,
 
 # get this from a list to a workable data frame
 fisher.df = do.call("rbind", fisher.out)
-# fisher.df = data.frame(
-#                        pval = unlist(fisher.array[,2]),
-#                        TF.bound.count.ELT2unbound = unlist(fisher.array[,3]))
+
 
 fisher.df = fisher.df[! is.na(fisher.df$pval),]
 
