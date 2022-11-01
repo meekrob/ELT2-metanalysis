@@ -19,6 +19,7 @@ fisher.out = lapply( allfiles,
     fisher.obj = fisher.test(tbl)
     pvalue<-fisher.obj$p.value
     interesting.value = tbl[1,2]
+    TF.bound.count.ELT2bound = tbl[2,2]
     data.frame(
         tf.name=factorname,
         pval=pvalue, 
