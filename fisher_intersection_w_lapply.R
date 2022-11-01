@@ -16,11 +16,39 @@ fisher.out = lapply( allfiles,
     tbl<-table(data$`elt2-bound`,data$`tf-bound`, 
                dnn = c("ELT-2 bound", 
                        paste(factorname, "bound")))
-    fisher.test(tbl)
-    pvalue<-fisher.test(tbl)$p.value
-    
-    list(pval=pvalue, table=tbl) # last statement- no return needed
+    fisher.obj = fisher.test(tbl)
+    pvalue<-fisher.obj$p.value
+    interesting.value = tbl[1,2]
+    list(
+        tf.name=factorname,
+        pval=pvalue, 
+         #table=tbl, 
+         #fisher=fisher.obj, 
+         iv=interesting.value) # last statement- no return needed
   
 })
 
 fisher.out$`ahr-1_LE`
+
+# get this from a list to a workable data frame
+fisher.array = do.call("rbind", fisher.out)
+fisher.df = data.frame(
+                       pval = unlist(fisher.array[,2]),
+                       TF.bound.count.ELT2unbound = unlist(fisher.array[,3]))
+
+fisher.df = fisher.df[! is.na(fisher.df$pval),]
+
+# get the value of TF.bound.count.ELT2unbound that corresponds to the top 10%
+q = quantile(fisher.df$TF.bound.count.ELT2unbound, .9, na.rm=T)
+q
+# exclude all hits below this
+
+fisher.df.interesting = fisher.df[ fisher.df$TF.bound.count.ELT2unbound > q,]
+
+fisher.df.interesting
+
+fisher.df.interesting$pval.adj = p.adjust(fisher.df.interesting$pval, method="bonf")
+
+# here is a list of TFs that are bound when ELT-2 is not, given at least 21
+# cases (always significant by fisher's exact)
+fisher.df.interesting
