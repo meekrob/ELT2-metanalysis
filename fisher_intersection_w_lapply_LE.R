@@ -1,11 +1,11 @@
 library(dplyr)
 library(stringr)
 allfiles = list.files('summit/modENCODEtracks/data/intersections/LE',full.names =TRUE)
-factornames = lapply(str_split(allfiles, "[/.]"), function(x) x[[5]]) %>% unlist()
+factornames = lapply(str_split(allfiles, "[/.]"), function(x) x[[6]]) %>% unlist()
 names(allfiles) = factornames
 fisher.out = lapply( allfiles, 
   function(fname) {
-    factorname = str_split(fname, "[/.]")[[1]][5]
+    factorname = str_split(fname, "[/.]")[[1]][6]
     data=read.table(fname)
     
     data$match=data$V6>0
