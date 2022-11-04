@@ -1,11 +1,11 @@
 library(dplyr)
 library(stringr)
-allfiles = list.files('summit/modENCODEtracks/data/intersections',full.names =TRUE)
-factornames = lapply(str_split(allfiles, "[/.]"), function(x) x[[5]]) %>% unlist()
+allfiles = list.files('summit/modENCODEtracks/data/intersections/LE',full.names =TRUE)
+factornames = lapply(str_split(allfiles, "[/.]"), function(x) x[[6]]) %>% unlist()
 names(allfiles) = factornames
 fisher.out = lapply( allfiles, 
   function(fname) {
-    factorname = str_split(fname, "[/.]")[[1]][5]
+    factorname = str_split(fname, "[/.]")[[1]][6]
     data=read.table(fname)
     
     data$match=data$V6>0
@@ -16,17 +16,18 @@ fisher.out = lapply( allfiles,
     tbl<-table(data$`elt2-bound`,data$`tf-bound`, 
                dnn = c("ELT-2 bound", 
                        paste(factorname, "bound")))
-    fisher.obj = fisher.test(tbl)
+    fisher.obj = fisher.test(tbl,alternative="less")
     pvalue<-fisher.obj$p.value
     interesting.value = tbl[1,2]
-    TF.bound.count.ELT2bound = tbl[2,2]
+    interesting.value.2= tbl[2,2]
     data.frame(
         tf.name=factorname,
         pval=pvalue, 
          #table=tbl, 
          #fisher=fisher.obj, 
-        TF.bound.count.ELT2unbound=interesting.value) # last statement- no return needed
-  
+        TF.bound.count.ELT2unbound=interesting.value,
+        TF.bound.count.ELT2bound=interesting.value.2) # last statement- no return needed
+       
 })
 
 # get this from a list to a workable data frame
