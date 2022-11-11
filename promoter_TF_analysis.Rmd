@@ -1,0 +1,39 @@
+---
+title: "Intestine promoter binding"
+author: "David C. King and Ambika"
+date: "11/11/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(GenomicRanges)
+```
+
+## Goal
+
+This analysis is looking for TFs that may explain intestine expression in the absence of ELT-2.
+
+## Promoters
+
+Genes which fall under different classes of intestine enrichment in Williams et al. 2023
+are assigned promoters gene 5' -1Kb/200bp. 
+
+The dataset has each promoter in the genome annotated with intestine expression DESeq information, as well as ELT-2 binding status gotten from Kudron et al. 2018.
+
+```{r promoters}
+promoters_df = readRDS('DATA/promoter_data.rds')
+promoters_df %>% head()
+```
+
+### Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
