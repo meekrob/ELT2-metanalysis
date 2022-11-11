@@ -26,14 +26,42 @@ The dataset has each promoter in the genome annotated with intestine expression 
 ```{r promoters}
 promoters_df = readRDS('DATA/promoter_data.rds')
 promoters_df %>% head()
+promoters_gr = makeGRangesFromDataFrame(promoters_df, keep.extra.columns = T, seqinfo=Seqinfo(genome="ce11"))
 ```
 
-### Including Plots
+### Promoters by intestine enrichment status
 
-You can also embed plots, for example:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+
+```{r enrichment_depletion}
+LE.depleted = promoters_df %>% filter(embryo_int_exp != "enriched")
+L1.depleted = promoters_df %>% filter(L1_int_exp != "enriched")
+L3.depleted = promoters_df %>% filter(L3_int_exp != "enriched")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r other-TFs}
+TF.files = list.files('summit/modENCODEtracks/data/orig/LE',
+                      full.names =TRUE,
+                      pattern='*.bed')
+factornames = lapply(str_split(TF.files, "[/.]"), function(x) x[[6]]) %>% unlist()
+names(TF.files) = factornames
+
+all.grs = lapply(TF.files, 
+  function(fname) {
+    factorname = str_split(fname, "[/.]")[[1]][5]
+    data=read.table(fname)
+    gr = makeGRangesFromDataFrame(data, keep.extra.columns = T, 
+                                  seqnames.field = "V1",
+                                  start.field = "V2",
+                                  end.field = "V3", seqinfo=Seqinfo(genome="ce11"))
+    return(gr)
+  }
+  )
+```
+
+```{r overlaps}
+
+LE.depleted.zip5.Bound.count = countOverlaps(makeGRangesFromDataFrame(LE.depleted, keep.extra.columns = T), all.grs[["zip-5_LE"]]) %>% sum()
+```
+
+
