@@ -56,12 +56,19 @@ all.grs = lapply(TF.files,
                                   end.field = "V3", seqinfo=Seqinfo(genome="ce11"))
     return(gr)
   }
-  )
+  
 ```
 
 ```{r overlaps}
 
-LE.depleted.zip5.Bound.count = countOverlaps(makeGRangesFromDataFrame(LE.depleted, keep.extra.columns = T), all.grs[["zip-5_LE"]]) %>% sum()
+LE.depleted.TF.Bound.count = countOverlaps(makeGRangesFromDataFrame(LE.depleted, keep.extra.columns = T), all.grs[["fname"]]) %>% sum()
+data.frame(
+        tf.bound=factorname,
+        number_times_bound=LE.depleted.TF.Bound.count, 
+        )
+) #loop ends
+binding_count.df=do.call("rbind",all.grs)
+binding_count.df
 ```
 
 
