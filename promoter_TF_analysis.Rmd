@@ -46,9 +46,9 @@ TF.files = list.files('summit/modENCODEtracks/data/orig/LE',
 factornames = lapply(str_split(TF.files, "[/.]"), function(x) x[[6]]) %>% unlist()
 names(TF.files) = factornames
 
-all.grs = lapply(TF.files, 
+all.grs= lapply(TF.files, 
   function(fname) {
-    factorname = str_split(fname, "[/.]")[[1]][5]
+    factorname = str_split(fname, "[/.]")[[1]][6]
     data=read.table(fname)
     gr = makeGRangesFromDataFrame(data, keep.extra.columns = T, 
                                   seqnames.field = "V1",
@@ -61,14 +61,14 @@ all.grs = lapply(TF.files,
 
 ```{r overlaps}
 
-LE.depleted.TF.Bound.count = countOverlaps(makeGRangesFromDataFrame(LE.depleted, keep.extra.columns = T), all.grs[["fname"]]) %>% sum()
+LE.depleted.TF.Bound.count = countOverlaps(makeGRangesFromDataFrame(LE.depleted, keep.extra.columns = T), all.grs[[gr]]) %>% sum(),
 data.frame(
         tf.bound=factorname,
         number_times_bound=LE.depleted.TF.Bound.count, 
         )
 ) #loop ends
 binding_count.df=do.call("rbind",all.grs)
-binding_count.df
+
 ```
 
 
