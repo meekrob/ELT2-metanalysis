@@ -56,10 +56,7 @@ all.grs= lapply(TF.files,
                                   end.field = "V3", seqinfo=Seqinfo(genome="ce11"))
     return(gr)
   })
-  
-```
 
-```{r overlaps}
 output=data.frame()
 for(TFname in names(all.grs))
 {
