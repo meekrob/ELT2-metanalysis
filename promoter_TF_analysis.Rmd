@@ -55,20 +55,19 @@ all.grs= lapply(TF.files,
                                   start.field = "V2",
                                   end.field = "V3", seqinfo=Seqinfo(genome="ce11"))
     return(gr)
-  }
+  })
   
 ```
 
 ```{r overlaps}
-
-LE.depleted.TF.Bound.count = countOverlaps(makeGRangesFromDataFrame(LE.depleted, keep.extra.columns = T), all.grs[[gr]]) %>% sum(),
-data.frame(
-        tf.bound=factorname,
-        number_times_bound=LE.depleted.TF.Bound.count, 
-        )
-) #loop ends
-binding_count.df=do.call("rbind",all.grs)
-
-```
+output=data.frame()
+for(TFname in names(all.grs))
+{
+  olap=countOverlaps(promoters_df,all.grs[[TFname]])
+  output=cbind(output,olap)
+}
+sums=colSums(output)
+names(sums)=names(all.grs)
+sums
 
 
