@@ -26,7 +26,7 @@ The dataset has each promoter in the genome annotated with intestine expression 
 ```{r promoters}
 promoters_df = readRDS('DATA/promoter_data.rds')
 promoters_df %>% head()
-promoters_gr = makeGRangesFromDataFrame(promoters_df, keep.extra.columns = T, seqinfo=Seqinfo(genome="ce11"))
+
 ```
 
 ### Promoters by intestine enrichment status
@@ -34,9 +34,10 @@ promoters_gr = makeGRangesFromDataFrame(promoters_df, keep.extra.columns = T, se
 
 
 ```{r enrichment_depletion}
-LE.depleted = promoters_df %>% filter(embryo_int_exp != "enriched")
-L1.depleted = promoters_df %>% filter(L1_int_exp != "enriched")
-L3.depleted = promoters_df %>% filter(L3_int_exp != "enriched")
+LE.enriched = promoters_df %>% filter(embryo_int_exp != "depleted")
+L1.enriched = promoters_df %>% filter(L1_int_exp != "depleted")
+L3.enriched = promoters_df %>% filter(L3_int_exp != "depleted")
+promoters_gr = makeGRangesFromDataFrame(L3.enriched, keep.extra.columns = T, seqinfo=Seqinfo(genome="ce11"))
 ```
 
 ```{r other-TFs}
