@@ -37,7 +37,7 @@ promoters_df %>% head()
 LE.depleted = promoters_df %>% filter(embryo_int_exp != "enriched")
 L1.depleted = promoters_df %>% filter(L1_int_exp != "enriched")
 L3.depleted = promoters_df %>% filter(L3_int_exp != "enriched")
-promoters_gr = makeGRangesFromDataFrame(LE.depleted, keep.extra.columns = T, seqinfo=Seqinfo(genome="ce11"))
+promoters_gr = makeGRangesFromDataFrame(L1.depleted, keep.extra.columns = T, seqinfo=Seqinfo(genome="ce11"))
 ```
 
 ```{r other-TFs}
