@@ -1,0 +1,83 @@
+---
+title: "Intestine promoter binding"
+author: "David C. King and Ambika"
+date: "11/11/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(GenomicRanges)
+```
+
+## Goal
+
+This analysis is looking for TFs that may explain intestine expression in the absence of ELT-2.
+
+## Promoters
+
+Genes which fall under different classes of intestine enrichment in Williams et al. 2023
+are assigned promoters gene 5' -1Kb/200bp. 
+
+The dataset has each promoter in the genome annotated with intestine expression DESeq information, as well as ELT-2 binding status gotten from Kudron et al. 2018.
+
+```{r promoters}
+promoters_df = readRDS('DATA/promoter_data.rds')
+promoters_df %>% head()
+
+```
+
+### Promoters by intestine enrichment status
+
+
+
+```{r enrichment_depletion}
+LE.enriched = promoters_df %>% filter(embryo_int_exp != "depleted")
+L1.enriched = promoters_df %>% filter(L1_int_exp != "depleted")
+L3.enriched = promoters_df %>% filter(L3_int_exp != "depleted")
+promoters_gr = makeGRangesFromDataFrame(L1.enriched, keep.extra.columns = T, seqinfo=Seqinfo(genome="ce11"))
+
+```
+
+```{r other-TFs}
+TF.files = list.files('summit/modENCODEtracks/data/orig/LE',
+                      full.names =TRUE,
+                      pattern='*.bed')
+factornames = lapply(str_split(TF.files, "[/.]"), function(x) x[[6]]) %>% unlist()
+names(TF.files) = factornames
+
+all.grs= lapply(TF.files, 
+  function(fname) {
+    factorname = str_split(fname, "[/.]")[[1]][6]
+    data=read.table(fname)
+    gr = makeGRangesFromDataFrame(data, keep.extra.columns = T, 
+                                  seqnames.field = "V1",
+                                  start.field = "V2",
+                                  end.field = "V3", seqinfo=Seqinfo(genome="ce11"))
+    return(gr)
+  })
+```
+
+```{r}
+output=data.frame()
+
+for(TFname in names(all.grs))
+{
+  
+  olap=countOverlaps(promoters_gr,all.grs[[TFname]])
+  
+  df = mcols(promoters_gr)# pull dataframe from GRanges metadata
+  df[[TFname]] = ifelse(length(olap) > 0, olap, 0)# append column of overlap counts, with column name: TFname
+  
+   mcols(promoters_gr) <- df # reassign dataframe to GRanges
+   
+}
+
+
+
+sums=colSums(mcols(promoters_gr))
+sums
+```
+ 
