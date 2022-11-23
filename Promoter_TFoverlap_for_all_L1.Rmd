@@ -80,7 +80,7 @@ data =data[,19:ncol(data)]
 colSums(as.data.frame(data))
  
 mtx_x <- matrix(unlist(data), ncol = 76, byrow = TRUE)
-mtx_x
+heatmap(mtx_x)
  
 ```
  
