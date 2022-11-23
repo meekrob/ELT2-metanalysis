@@ -74,12 +74,17 @@ for(TFname in names(all.grs))
    mcols(promoters_gr) <- df # reassign dataframe to GRanges
    
 }
+```
+```{r}
 
 data = as.data.frame(mcols(promoters_gr))
 data =data[,19:ncol(data)]
+moddata= data[rowSums(data[])>10,]
 colSums(as.data.frame(data))
+```
+```{r}
  
-mtx_x <- matrix(unlist(data), ncol = 76, byrow = TRUE)
+mtx_x <- matrix(unlist(moddata), ncol = length(moddata), byrow = TRUE)
 heatmap(mtx_x)
  
 ```
