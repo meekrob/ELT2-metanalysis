@@ -78,5 +78,9 @@ for(TFname in names(all.grs))
 data = as.data.frame(mcols(promoters_gr))
 data =data[,19:ncol(data)]
 colSums(as.data.frame(data))
+ 
+mtx_x <- matrix(unlist(data), ncol = 76, byrow = TRUE)
+mtx_x
+ 
 ```
  
