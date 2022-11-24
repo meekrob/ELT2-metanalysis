@@ -119,15 +119,18 @@ v = SVD$v
 ```
 
 ```{r try-different-depths}
-heatmap(mx.ind[rowSums(mx.ind)>2,], scale="none")
+mx.ind = mx.ind[rowSums(mx.ind)>2,]
+heatmap(mx.ind, scale="none")
+hist(mx.ind)
 
-depth = 2
+depth = 1
 us <- as.matrix(u[, 1:depth])
 vs <- as.matrix(v[, 1:depth])
 ds <- as.matrix(d[1:depth, 1:depth])
 ls <- us %*% ds %*% t(vs)
 colnames(ls) <- colnames(mx.ind)
 heatmap(ls, scale="none")
+hist(ls)
 
 depth = 3
 us <- as.matrix(u[, 1:depth])
@@ -136,6 +139,7 @@ ds <- as.matrix(d[1:depth, 1:depth])
 ls <- us %*% ds %*% t(vs)
 colnames(ls) <- colnames(mx.ind)
 heatmap(ls, scale="none")
+hist(ls)
 
 depth = 5
 us <- as.matrix(u[, 1:depth])
@@ -144,6 +148,7 @@ ds <- as.matrix(d[1:depth, 1:depth])
 ls <- us %*% ds %*% t(vs)
 colnames(ls) <- colnames(mx.ind)
 heatmap(ls, scale="none")
+hist(ls)
 
 depth = 10
 us <- as.matrix(u[, 1:depth])
@@ -152,6 +157,7 @@ ds <- as.matrix(d[1:depth, 1:depth])
 ls <- us %*% ds %*% t(vs)
 colnames(ls) <- colnames(mx.ind)
 heatmap(ls, scale="none")
+hist(ls)
 
 depth = 20
 us <- as.matrix(u[, 1:depth])
@@ -160,4 +166,32 @@ ds <- as.matrix(d[1:depth, 1:depth])
 ls <- us %*% ds %*% t(vs)
 colnames(ls) <- colnames(mx.ind)
 heatmap(ls, scale="none")
+hist(ls)
+
+depth = 50
+us <- as.matrix(u[, 1:depth])
+vs <- as.matrix(v[, 1:depth])
+ds <- as.matrix(d[1:depth, 1:depth])
+ls <- us %*% ds %*% t(vs)
+colnames(ls) <- colnames(mx.ind)
+heatmap(ls, scale="none")
+hist(ls)
+
+depth = 60
+us <- as.matrix(u[, 1:depth])
+vs <- as.matrix(v[, 1:depth])
+ds <- as.matrix(d[1:depth, 1:depth])
+ls <- us %*% ds %*% t(vs)
+colnames(ls) <- colnames(mx.ind)
+heatmap(ls, scale="none")
+hist(ls)
+
+depth = 76
+us <- as.matrix(u[, 1:depth])
+vs <- as.matrix(v[, 1:depth])
+ds <- as.matrix(d[1:depth, 1:depth])
+ls <- us %*% ds %*% t(vs)
+colnames(ls) <- colnames(mx.ind)
+heatmap(ls, scale="none")
+hist(ls)
 ```
