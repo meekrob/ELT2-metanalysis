@@ -99,15 +99,12 @@ cat("fraction of zero values: ")
 sum(mx.filt==0)/length(mx.filt)
 ```
 
-```{r}
-heatmap(mx.filt[rowSums(mx.ind)>2,], scale="none")
-```
 
-```{r mx.indicator}
+```{r presence-absence-of-binding}
 
 mx.ind = ifelse(mx.filt > 0, 1, 0)  
-
+rs = rowSums(mx.ind)
 heatmap(mx.ind,scale="none")
-heatmap(mx.ind[rowSums(mx.ind)>2,], scale="none")
+heatmap(mx.ind[rs>2 & rs < 20,], scale="none")
 ```
 
