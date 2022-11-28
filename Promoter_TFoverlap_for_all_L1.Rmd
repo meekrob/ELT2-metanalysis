@@ -12,10 +12,18 @@ library(dplyr)
 library(GenomicRanges)
 library(pheatmap)
 library(proxy) # for dist() with a method argument that can be a function
-distance.cosine = function(u,v) {
-  1 - ((u%*%v) / (norm(u,"2")*norm(v,"2")))
+# distance.cosine = function(u,v) {
+#   1 - ((u%*%v) / (norm(u,"2")*norm(v,"2")))
+# }
+cosine_dist = function(df) { # much faster
+  M = as.matrix(df)
+  sim = M / sqrt(rowSums(M*M))
+  sim = sim %*% t(sim)
+  as.dist(1-sim)
 }
 ```
+
+See https://stats.stackexchange.com/questions/31565/compute-a-cosine-dissimilarity-matrix-in-r/367216#367216 for the efficient computation of the cosine dissimilarity.
 
 ## Goal
 
@@ -120,9 +128,10 @@ stopifnot(sum(colSums(mx.ind) == 0)==0)
 ```
 
 ```{r apply-cos-dist}
-system.time({
-dist_cos_rows = dist(mx.ind, method=distance.cosine)
-dist_cos_cols = dist(t(mx.ind), method=distance.cosine)})
+system.time({ # use cosine_dist instead of distance.cosine. See link referenced.
+dist_cos_rows = cosine_dist(mx.ind)
+dist_cos_cols = cosine_dist(t(mx.ind))
+})
 ```
 
 ```{r hclust-for-screeplot}
@@ -158,9 +167,9 @@ stopifnot(sum(colSums(mx.ind) == 0)==0)
 ```
 
 ```{r apply-cos-dist-filtered}
-system.time(
-{dist_cos_rows = dist(mx.ind, method=distance.cosine)
-dist_cos_cols = dist(t(mx.ind), method=distance.cosine)})
+system.time({
+  dist_cos_rows = cosine_dist(mx.ind, method=distance.cosine)
+  dist_cos_cols = cosine_dist(t(mx.ind), method=distance.cosine)})
 ```
 
 ```{r hclust-for-screeplot-filtered}
