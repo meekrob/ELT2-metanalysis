@@ -1,0 +1,75 @@
+---
+title: "Cluster diagnostics"
+author: "David C. King"
+date: "11/26/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(fpc) # for clusterbenchstats
+library(tidyverse)
+library(ggplot2)
+
+```
+
+```{r data}
+set.seed(20000)
+  options(digits=3)
+  face <- rFace(10,dMoNo=2,dNoEy=0,p=2)
+```
+
+```{r fpc-clusterbenchstats-example-1}
+  set.seed(20000)
+  options(digits=3)
+  face <- rFace(10,dMoNo=2,dNoEy=0,p=2)
+  clustermethod=c("kmeansCBI","hclustCBI")
+# A clustering method can be used more than once, with different
+# parameters
+  clustermethodpars <- list()
+  clustermethodpars[[2]] <- list()
+  clustermethodpars[[2]]$method <- "average"
+# Last element of clustermethodpars needs to have an entry!
+  methodname <- c("kmeans","average")
+  cbs <-  clusterbenchstats(face,G=2:3,clustermethod=clustermethod,
+    methodname=methodname,distmethod=rep(FALSE,2),
+    clustermethodpars=clustermethodpars,nnruns=1,kmruns=1,fnruns=1,avenruns=1)
+ 
+  
+  knitr::kable(print(cbs$qstat,aggregate=TRUE,weights=c(1,0,0,0,0,1,0,1,0,1,0,1,0,0,1,1)))
+# The weights are weights for the validation statistics ordered as in
+# cbs$qstat$statistics for computation of an aggregated index, see
+# ?print.valstat.
+```
+
+```{r boostrap}
+  bootclassif <- c("centroid","averagedist")
+  cbsboot <- clusterbenchstats(face,G=2:3,clustermethod=clustermethod,
+    methodname=methodname,distmethod=rep(FALSE,2),
+    clustermethodpars=clustermethodpars,
+    useboot=TRUE,bootclassif=bootclassif,bootmethod="nselectboot",
+    bootruns=2,nnruns=1,kmruns=1,fnruns=1,avenruns=1,useallg=TRUE)
+  print(cbsboot)
+```
+
+
+
+```{r hclust-diagnostic, eval=FALSE}
+bench=clusterbenchstats(dist_euclidean, 2:5, 
+                        clustermethod="disthclustCBI", 
+                        scaling=FALSE,
+                    clustermethodpars=list(list(method="average")),
+                        nnruns = 10, kmruns=10, fnruns=10,avenruns=10
+                        )
+print(bench$sstat,aggregate=TRUE,weights=c(1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0))
+```
+
+```{r}
+cf2 <- clusterboot(dist_euclidean, B=3, 
+                        bootmethod="subset",
+                        clustermethod=disthclustCBI,
+                        k=5, 
+                        cut="number", 
+                        method="average", 
+                        showplots=TRUE, seed=15555)
+```
