@@ -10,6 +10,11 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(dplyr)
 library(GenomicRanges)
+library(pheatmap)
+library(proxy) # for dist() with a method argument that can be a function
+distance.cosine = function(u,v) {
+  1 - ((u%*%v) / (norm(u,"2")*norm(v,"2")))
+}
 ```
 
 ## Goal
@@ -98,13 +103,81 @@ table(rowSums(mx.filt))
 cat("fraction of zero values: ")
 sum(mx.filt==0)/length(mx.filt)
 ```
-
+# No filtering
 
 ```{r presence-absence-of-binding}
 
 mx.ind = ifelse(mx.filt > 0, 1, 0)  
 rs = rowSums(mx.ind)
-heatmap(mx.ind,scale="none")
-heatmap(mx.ind[rs>2 & rs < 20,], scale="none")
+
+
+# have to remove any full 0 rows/columns for clustering with cos
+mx.ind = mx.ind[rs > 2,]
+cs = colSums(mx.ind)
+mx.ind = mx.ind[,cs > 0]
+stopifnot(sum(rowSums(mx.ind) == 0)==0)
+stopifnot(sum(colSums(mx.ind) == 0)==0)
 ```
 
+```{r apply-cos-dist}
+system.time({
+dist_cos_rows = dist(mx.ind, method=distance.cosine)
+dist_cos_cols = dist(t(mx.ind), method=distance.cosine)})
+```
+
+```{r hclust-for-screeplot}
+hc.cos = hclust(dist_cos_rows, method="average")
+plot(1:length(hc.cos$height),rev(hc.cos$height),  xlim=c(0,50), main="scree for cos.")
+hc.cos = hclust(dist_cos_cols, method="average")
+plot(1:length(hc.cos$height),rev(hc.cos$height),  xlim=c(0,100), main="scree for cos. on cols")
+```
+
+```{r pheatmap}
+
+pheatmap(mx.ind, clustering_distance_rows = dist_cos_rows,
+         clustering_distance_cols = dist_cos_cols,
+         # cutree_rows = 20,
+         # cutree_cols = 23,
+         clustering_method = "average",
+         color = c('#FFFFCC', '#68001C'), # to match heatmap() colors with 0/1
+         main="TF presence/absence (no filtering of HOT regions)", 
+         legend=FALSE
+         #,file="hc.L1.HOT.pdf"
+         )
+```
+## Filtered
+
+```{r filtered}
+mx.ind = ifelse(mx.filt > 0, 1, 0)  
+rs = rowSums(mx.ind)
+mx.ind = mx.ind[rs > 2 & rs < 20,]
+cs = colSums(mx.ind)
+mx.ind = mx.ind[,cs > 0]
+stopifnot(sum(rowSums(mx.ind) == 0)==0)
+stopifnot(sum(colSums(mx.ind) == 0)==0)
+```
+
+```{r apply-cos-dist-filtered}
+system.time(
+{dist_cos_rows = dist(mx.ind, method=distance.cosine)
+dist_cos_cols = dist(t(mx.ind), method=distance.cosine)})
+```
+
+```{r hclust-for-screeplot-filtered}
+hc.cos = hclust(dist_cos_rows, method="average")
+plot(1:length(hc.cos$height),rev(hc.cos$height),  xlim=c(0,100), main="scree for cos. on rows")
+hc.cos = hclust(dist_cos_cols, method="average")
+plot(1:length(hc.cos$height),rev(hc.cos$height),  xlim=c(0,100), main="scree for cos. on cols")
+```
+```{r pheatmap-filtered}
+pheatmap(mx.ind, clustering_distance_rows = dist_cos_rows,
+         clustering_distance_cols = dist_cos_cols,
+         cutree_rows = 10, 
+
+         clustering_method = "average",
+         color = c('#FFFFCC', '#68001C'), # to match heatmap() colors with 0/1
+         main="TF presence/absence ", 
+         legend=FALSE
+         #, file="hc.L1.noHOT.pdf" # uncomment to write to a file instead of plot
+         )
+```
