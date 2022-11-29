@@ -170,8 +170,8 @@ stopifnot(sum(colSums(mx.ind) == 0)==0)
 
 ```{r apply-cos-dist-filtered}
 system.time({
-  dist_cos_rows = cosine_dist(mx.ind, method=distance.cosine)
-  dist_cos_cols = cosine_dist(t(mx.ind), method=distance.cosine)})
+  dist_cos_rows = cosine_dist(mx.ind)
+  dist_cos_cols = cosine_dist(t(mx.ind))})
 ```
 
 ```{r hclust-for-screeplot-filtered}
