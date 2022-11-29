@@ -11,7 +11,7 @@ library(tidyverse)
 library(dplyr)
 library(GenomicRanges)
 library(pheatmap)
-library(proxy) # for dist() with a method argument that can be a function
+library(fpc) 
 # distance.cosine = function(u,v) {
 #   1 - ((u%*%v) / (norm(u,"2")*norm(v,"2")))
 # }
@@ -137,6 +137,8 @@ dist_cos_cols = cosine_dist(t(mx.ind))
 ```{r hclust-for-screeplot}
 hc.cos = hclust(dist_cos_rows, method="average")
 plot(1:length(hc.cos$height),rev(hc.cos$height),  xlim=c(0,50), main="scree for cos.")
+clusterboot(dist_cos_rows, B=100, bootmethod="boot",clustermethod=disthclustCBI, method="average", k=2)
+hc.cos.k = cutree(hc.cos, 10)
 hc.cos = hclust(dist_cos_cols, method="average")
 plot(1:length(hc.cos$height),rev(hc.cos$height),  xlim=c(0,100), main="scree for cos. on cols")
 ```
@@ -145,7 +147,7 @@ plot(1:length(hc.cos$height),rev(hc.cos$height),  xlim=c(0,100), main="scree for
 
 pheatmap(mx.ind, clustering_distance_rows = dist_cos_rows,
          clustering_distance_cols = dist_cos_cols,
-         # cutree_rows = 20,
+          cutree_rows = 10,
          # cutree_cols = 23,
          clustering_method = "average",
          color = c('#FFFFCC', '#68001C'), # to match heatmap() colors with 0/1
