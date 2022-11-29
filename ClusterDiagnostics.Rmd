@@ -23,23 +23,20 @@ set.seed(20000)
   set.seed(20000)
   options(digits=3)
   face <- rFace(10,dMoNo=2,dNoEy=0,p=2)
-  clustermethod=c("kmeansCBI","hclustCBI")
+  clustermethod=c("hclustCBI","hclustCBI")
 # A clustering method can be used more than once, with different
 # parameters
   clustermethodpars <- list()
+  clustermethodpars[[1]] <- list()
+  clustermethodpars[[1]]$method <- "complete"
   clustermethodpars[[2]] <- list()
   clustermethodpars[[2]]$method <- "average"
 # Last element of clustermethodpars needs to have an entry!
-  methodname <- c("kmeans","average")
+  methodname <- c("complete","average")
   cbs <-  clusterbenchstats(face,G=2:3,clustermethod=clustermethod,
     methodname=methodname,distmethod=rep(FALSE,2),
-    clustermethodpars=clustermethodpars,nnruns=1,kmruns=1,fnruns=1,avenruns=1)
- 
-  
-  knitr::kable(print(cbs$qstat,aggregate=TRUE,weights=c(1,0,0,0,0,1,0,1,0,1,0,1,0,0,1,1)))
-# The weights are weights for the validation statistics ordered as in
-# cbs$qstat$statistics for computation of an aggregated index, see
-# ?print.valstat.
+    clustermethodpars=clustermethodpars,nnruns=2,kmruns=2,fnruns=2,avenruns=2)
+
 ```
 
 ```{r boostrap}
@@ -64,12 +61,50 @@ bench=clusterbenchstats(dist_euclidean, 2:5,
 print(bench$sstat,aggregate=TRUE,weights=c(1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0))
 ```
 
-```{r}
-cf2 <- clusterboot(dist_euclidean, B=3, 
-                        bootmethod="subset",
-                        clustermethod=disthclustCBI,
-                        k=5, 
-                        cut="number", 
-                        method="average", 
-                        showplots=TRUE, seed=15555)
+# clusterboot
+
+```{r cf1}
+  options(digits=3)
+  set.seed(20000)
+  face <- rFace(50,dMoNo=2,dNoEy=0,p=2)
+  cf1 <- clusterboot(face,B=10,bootmethod=
+          c("boot","noise","jitter"),clustermethod=kmeansCBI,
+          k=10,seed=15555)
+
+  print(cf1)
+  plot(cf1)
+
+```
+
+```{r cf2}
+cf2 <- clusterboot(dist(face),B=3,bootmethod=
+          "subset",clustermethod=disthclustCBI,
+          k=5, cut="number", method="average", showplots=FALSE, seed=15555)
+  print(cf2)
+
+```
+
+```{r d12x}
+d1 <- c("a","b","a","c")
+  d2 <- c("a","a","a","b")
+  dx <- as.data.frame(cbind(d1,d2))
+  cpx <- clusterboot(dx,k=2,B=10,clustermethod=claraCBI,
+          multipleboot=TRUE,usepam=TRUE,datatomatrix=FALSE)
+  print(cpx)
+
+```
+
+# cqclusters.stats
+
+```{r cqcluster-stats}
+set.seed(20000)
+options(digits=3)
+face <- rFace(200,dMoNo=2,dNoEy=0,p=2)
+dface <- dist(face)
+complete3 <- cutree(hclust(dface),3)
+cqcluster.stats(dface,complete3,
+              alt.clustering=as.integer(attr(face,"grouping")))
+df.face = as.data.frame(face)
+df.face$grouping = attr(face, 'grouping')
+ggplot(df.face, aes(x=V1,y=V2, color=grouping)) + geom_point()
 ```
