@@ -39,7 +39,8 @@ The dataset has each promoter in the genome annotated with intestine expression 
 ```{r promoters}
 promoters_df = readRDS('DATA/promoter_data.rds')
 promoters_df %>% head()
-
+rownames(promoters_df) <- promoters_df$name
+geneNamesToWBID = promoters_df %>% select(name,WBGeneID)
 ```
 
 ### Promoters by intestine enrichment status
@@ -50,20 +51,31 @@ promoters_df %>% head()
 LE.enriched = promoters_df %>% filter(embryo_int_exp != "depleted")
 L1.enriched = promoters_df %>% filter(L1_int_exp != "depleted")
 L3.enriched = promoters_df %>% filter(L3_int_exp != "depleted")
-promoters_gr = makeGRangesFromDataFrame(L1.enriched, keep.extra.columns = T, seqinfo=Seqinfo(genome="ce11"))
 
 ```
 
 ```{r other-TFs}
-TF.files = list.files('summit/modENCODEtracks/data/orig/L1',
-                      full.names =TRUE,
-                      pattern='*.bed')
-factornames = lapply(str_split(TF.files, "[/.]"), function(x) x[[6]]) %>% unlist()
-names(TF.files) = factornames
+STAGE = "LE"
+mapping = read.table("TFNameMapping.df",header = T)
+
+TF.files = mapping %>% filter(stage == STAGE) %>% pull(path)
+names(TF.files) = mapping %>% filter(stage == STAGE) %>% pull(name)
+intestine_enriched = geneNamesToWBID[unique(names(TF.files)),]
+
+if (STAGE == "LE") {
+   intestine_enriched$enriched = intestine_enriched$WBGeneID %in% LE.enriched$WBGeneID
+   promoters_gr = makeGRangesFromDataFrame(LE.enriched, keep.extra.columns = T, seqinfo=Seqinfo(genome="ce11"))
+}else if (STAGE == "L1"){
+   intestine_enriched$enriched = intestine_enriched$WBGeneID %in% L1.enriched$WBGeneID
+   promoters_gr = makeGRangesFromDataFrame(L1.enriched, keep.extra.columns = T, seqinfo=Seqinfo(genome="ce11"))
+}else if (STAGE == "L3"){
+  intestine_enriched$enriched = intestine_enriched$WBGeneID %in% L3.enriched$WBGeneID
+  promoters_gr = makeGRangesFromDataFrame(L3.enriched, keep.extra.columns = T, seqinfo=Seqinfo(genome="ce11"))
+}
 
 all.grs= lapply(TF.files, 
   function(fname) {
-    factorname = str_split(fname, "[/.]")[[1]][6]
+    
     data=read.table(fname)
     gr = makeGRangesFromDataFrame(data, keep.extra.columns = T, 
                                   seqnames.field = "V1",
@@ -84,7 +96,7 @@ for(TFname in names(all.grs))
   df = mcols(promoters_gr)# pull dataframe from GRanges metadata
   df[[TFname]] = olap
   
-   mcols(promoters_gr) <- df # reassign dataframe to GRanges
+  mcols(promoters_gr) <- df # reassign dataframe to GRanges
    
 }
 ```
@@ -128,27 +140,31 @@ stopifnot(sum(colSums(mx.ind) == 0)==0)
 ```
 
 ```{r apply-cos-dist}
-system.time({ # use cosine_dist instead of distance.cosine. See link referenced.
+
 dist_cos_rows = cosine_dist(mx.ind)
 dist_cos_cols = cosine_dist(t(mx.ind))
-})
+
 ```
 
-```{r hclust-for-screeplot}
+```{r hclust-for-screeplot, eval=FALSE}
 hc.cos = hclust(dist_cos_rows, method="average")
 plot(1:length(hc.cos$height),rev(hc.cos$height),  xlim=c(0,50), main="scree for cos.")
-clusterboot(dist_cos_rows, B=100, bootmethod="boot",clustermethod=disthclustCBI, method="average", k=2)
+#clusterboot(dist_cos_rows, B=100, bootmethod="boot",clustermethod=disthclustCBI, method="average", k=2)
 hc.cos.k = cutree(hc.cos, 10)
 hc.cos = hclust(dist_cos_cols, method="average")
 plot(1:length(hc.cos$height),rev(hc.cos$height),  xlim=c(0,100), main="scree for cos. on cols")
 ```
 
 ```{r pheatmap}
-
+rownames(intestine_enriched) <- sub("-",".", intestine_enriched$name)
+int.enriched = data.frame(enriched=factor( ifelse(intestine_enriched[,'enriched'],'yes','no'))) 
+rownames(int.enriched) = sub("-",".", intestine_enriched$name)
 pheatmap(mx.ind, clustering_distance_rows = dist_cos_rows,
          clustering_distance_cols = dist_cos_cols,
-          cutree_rows = 10,
-         # cutree_cols = 23,
+         cutree_rows = 10,
+         cutree_cols = 14,
+         annotation_col = int.enriched,
+         show_rownames = F,
          clustering_method = "average",
          color = c('#FFFFCC', '#68001C'), # to match heatmap() colors with 0/1
          main="TF presence/absence (no filtering of HOT regions)", 
@@ -175,16 +191,38 @@ system.time({
 ```
 
 ```{r hclust-for-screeplot-filtered}
-hc.cos = hclust(dist_cos_rows, method="average")
-plot(1:length(hc.cos$height),rev(hc.cos$height),  xlim=c(0,100), main="scree for cos. on rows")
-hc.cos = hclust(dist_cos_cols, method="average")
-plot(1:length(hc.cos$height),rev(hc.cos$height),  xlim=c(0,100), main="scree for cos. on cols")
+hc.cos.rows = hclust(dist_cos_rows, method="average")
+plot(1:length(hc.cos.rows$height),rev(hc.cos.rows$height),  xlim=c(0,100), main="scree for cos. on rows")
+hc.cos.cols = hclust(dist_cos_cols, method="average")
+plot(1:length(hc.cos.cols$height),rev(hc.cos.cols$height),  xlim=c(0,100), main="scree for cos. on cols")
 ```
 ```{r pheatmap-filtered}
 pheatmap(mx.ind, clustering_distance_rows = dist_cos_rows,
          clustering_distance_cols = dist_cos_cols,
-         cutree_rows = 10, 
+         cutree_rows = 8, 
+         cutree_cols = 21, 
+         annotation_col = int.enriched,
+         show_rownames = F,
+         clustering_method = "average",
+         color = c('#FFFFCC', '#68001C'), # to match heatmap() colors with 0/1
+         main="TF presence/absence ", 
+         legend=FALSE
+         #, file="hc.L1.noHOT.pdf" # uncomment to write to a file instead of plot
+         )
+```
+```{r cluster-stability}
 
+clusterboot(dist_cos_rows, B=1000, bootmethod="boot",clustermethod=disthclustCBI, method="average", k=13,seed=110)
+
+hc.cos.rows.k = cutree(hc.cos.rows, k=13)
+table(hc.cos.rows.k)
+```
+```{r try-kmeans}
+clusterboot(mx.ind, B=100, bootmethod="boot",clustermethod=kmeansCBI,k=2)
+```
+```{r pheatmap-filtered-kmeans}
+pheatmap(mx.ind, kmeans_k=2,
+         clustering_distance_cols = dist_cos_cols,
          clustering_method = "average",
          color = c('#FFFFCC', '#68001C'), # to match heatmap() colors with 0/1
          main="TF presence/absence ", 
