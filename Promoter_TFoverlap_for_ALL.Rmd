@@ -1,6 +1,6 @@
 ---
 title: "Intestine promoter binding"
-author: "David C. King and Ambika"
+author: "David C. King"
 date: "11/11/2022"
 output: html_document
 ---
@@ -62,30 +62,32 @@ geneNamesToWBID = promoters_df %>% select(name,WBGeneID)
 
 
 ```{r enrichment_depletion}
-LE.enriched = promoters_df %>% filter(embryo_int_exp %in% c("enriched", "equal") | log2FoldChange.embryo > 0)
-L1.enriched = promoters_df %>% filter(!is.na(log2FoldChange.L1) & log2FoldChange.L1 > 1)
-L3.enriched = promoters_df %>% filter(!is.na(log2FoldChange.L3) & log2FoldChange.L3 > 1)
+intestine_present = promoters_df %>% filter(embryo_int_exp %in% c("enriched", "equal") | 
+                                        L1_int_exp %in% c("enriched", "equal") | 
+                                        L3_int_exp %in% c("enriched", "equal"))
 
+
+promoters_gr = makeGRangesFromDataFrame(intestine_present, keep.extra.columns = T, seqinfo = Seqinfo(genome="ce11"))
 ```
 
 ```{r other-TFs}
-STAGE = "LE"
+
 mapping = read.table("TFNameMapping.df",header = T)
 
-TF.files = mapping %>% filter(stage == STAGE) %>% pull(path)
-names(TF.files) = mapping %>% filter(stage == STAGE) %>% pull(name)
-intestine_enriched = geneNamesToWBID[unique(names(TF.files)),]
+# label duplicates
+mapping$name_stage = paste(mapping$name, mapping$stage, sep="_")
+with_dups = mapping %>% 
+  filter(name_stage %in% mapping[which(duplicated(mapping$name_stage)), 'name_stage']) %>% 
+   group_by(name_stage) %>% mutate(id = row_number()) 
+with_dups$name_stage = paste(with_dups$name_stage,name_stage, sep=".")
 
-if (STAGE == "LE") {
-   intestine_enriched$enriched = intestine_enriched$WBGeneID %in% LE.enriched$WBGeneID
-   promoters_gr = makeGRangesFromDataFrame(LE.enriched, keep.extra.columns = T, seqinfo=Seqinfo(genome="ce11"))
-}else if (STAGE == "L1"){
-   intestine_enriched$enriched = intestine_enriched$WBGeneID %in% L1.enriched$WBGeneID
-   promoters_gr = makeGRangesFromDataFrame(L1.enriched, keep.extra.columns = T, seqinfo=Seqinfo(genome="ce11"))
-}else if (STAGE == "L3"){
-  intestine_enriched$enriched = intestine_enriched$WBGeneID %in% L3.enriched$WBGeneID
-  promoters_gr = makeGRangesFromDataFrame(L3.enriched, keep.extra.columns = T, seqinfo=Seqinfo(genome="ce11"))
-}
+rownames(mapping) <- mapping$path
+mapping[with_dups$path, 'name_stage'] = with_dups$name_stage
+
+TF.files = mapping %>% pull(path)
+names(TF.files) = mapping  %>% pull(name_stage)
+TFs = geneNamesToWBID[names(TF.files),]
+
 
 all.grs= lapply(TF.files, 
   function(fname) {
