@@ -1,50 +1,37 @@
-library(RMariaDB)
-if (! require(rappdirs)) {
-  install.packages('rappdirs')
-  library(rappdirs)
-}
 ### add here
-USERNAME=""
-HOST=""
+ONISHDB_USERNAME=""
+ONISHDB_HOST=""
 ###
 
-### only change if necessary
-DATADIR = user_data_dir("OnishDB") # will be something like "~/Library/Application Support/OnishDB"
-
-checkDataDir <- function() {
-  system(paste("mkdir -p",  DATADIR)) == 0
+if (! require(R.cache)) {
+  install.packages('R.cache')
+  library(R.cache)
+}
+if (! require(RMariaDB)) {
+  install.packages('RMariaDB')
+  library(RMariaDB)
 }
 
-writeTestFail <- function() {
-  system(paste("mkdir -p", "/.writetest")) == 0
-}
-
-
-onishDBListDownloaded <- function() {
-  stopifnot(checkDataDir())
-  dir(DATADIR)
-}
-
-onishDBConnect() {
+onishDBConnect<- function() {
   onishDATA <- dbConnect(
     drv = RMariaDB::MariaDB(), 
-    username = USERNAME,
-    host = HOST, 
+    username = ONISHDB_USERNAME,
+    host = ONISHDB_HOST, 
     port = 3307#, dbname = "NishimuraLab"
   )  
   return(onishDATA)
 }
 
 dbReadTableCached = function(DBConnection, tableName, force=FALSE, ...) {
-  stopifnot(checkDataDir())
-  filename = paste0(tableName, ".rds")
-  datapath = file.path(DATADIR, filename)
-
-  if ((! force) && file.exists(datapath)) {
-    return(readRDS(datapath))
+  key = list(tableName)
+  data <- loadCache(key)
+  if (!is.null(data)) {
+    cat("Loaded cached data\n")
+    return(data);
   }
+  cat("Not cached... Loading from database.")
   data=dbReadTable(DBConnection, tableName) 
-  saveRDS(data, datapath)
+  saveCache(data, key=key)
   return(data)
 }
 
