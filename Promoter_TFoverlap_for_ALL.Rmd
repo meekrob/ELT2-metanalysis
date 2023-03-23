@@ -9,10 +9,27 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(dplyr)
+library(magrittr)
 library(GenomicRanges)
 #library(pheatmap)
 library(ComplexHeatmap)
 library(RMariaDB)
+
+
+# write out code that gives the R declaration for a variable (see dump) 
+maRshall <- function(varname) {
+  
+  # fil <- tempfile(fileext=".Rdmped")
+  # dump(varname, file = fil)
+  # cat(readLines(fil))
+  # unlink(fil)
+  
+  zz <- textConnection("rcode", "w")
+  dump(varname, file = zz)
+  cat(rcode)
+  close(zz)
+  
+}
 
 # distance.cosine = function(u,v) {
 #   1 - ((u%*%v) / (norm(u,"2")*norm(v,"2")))
@@ -23,6 +40,40 @@ cosine_dist = function(df) { # much faster
   sim = sim %*% t(sim)
   as.dist(1-sim)
 }
+
+is_LE_TF = function(TF) {startsWith(TF,"LE")}
+is_L1_TF = function(TF) {startsWith(TF,"L1")}
+is_L3_TF = function(TF) {startsWith(TF,"L3")}
+
+evens_ix = function(x) { n = length(x); (1:(n/2))*2}
+odds_ix = function(x) { evens_ix(x) - 1}
+
+splitStageStr = function(TFnames) { 
+  splt = strsplit(TFnames, "_", fixed=T) %>% unlist()
+  len=length(splt)
+  df = data.frame(name=splt[ odds_ix(splt) ])
+  #df$stage = which_TF_stage( splt[ evens_ix(splt) ] )
+  df$LE = is_LE_TF(splt[ evens_ix(splt) ])
+  df$L1 = is_L1_TF(splt[ evens_ix(splt) ])
+  df$L3 = is_L3_TF(splt[ evens_ix(splt) ])
+  return(df)
+}
+
+# which_TF_stage = function(arg) {
+#   ifelse(is_LE_TF(arg), 
+#          "LE", 
+#          ifelse(
+#            is_L1_TF(arg), 
+#            "L1", 
+#            ifelse(is_L3_TF(arg), 
+#                   "L3", 
+#                   "other")
+#          )
+#   )
+# }
+
+source('DB_Connect.R')
+
 ```
 
 See https://stats.stackexchange.com/questions/31565/compute-a-cosine-dissimilarity-matrix-in-r/367216#367216 for the efficient computation of the cosine dissimilarity.
@@ -40,25 +91,31 @@ The dataset has each promoter in the genome annotated with intestine expression 
 ```{r wtf3}
 onishDATA <- dbConnect(
      drv = RMariaDB::MariaDB(), 
-     username = "root",
-     password = "candleWax1!", 
+     username = "worm",
      host = "129.82.125.11", 
      port = 3307, dbname = "NishimuraLab"
 )
-wtf = dbReadTable(onishDATA, "WTF3")
+wtf = dbReadTableCached(onishDATA, "WTF3")
 dbDisconnect(onishDATA)
+
+cat("There are ")
+cat(nrow(wtf), append = T)
+cat(" TFs in WTF", append = T)
 ```
 
 
 ```{r promoters}
 promoters_df = readRDS('DATA/promoter_data_2022_12_06.rds')
+cat("There are ")
+cat(nrow(promoters_df), append = T)
+cat(" promoters in dataset", append = T)
 promoters_df %>% head()
 rownames(promoters_df) <- promoters_df$name
 geneNamesToWBID = promoters_df %>% select(name,WBGeneID)
+
 ```
 
-### Promoters by intestine enrichment status
-
+### Filter the promoters down to intestine present in any stage
 
 
 ```{r enrichment_depletion}
@@ -66,9 +123,19 @@ intestine_present = promoters_df %>% filter(embryo_int_exp %in% c("enriched", "e
                                         L1_int_exp %in% c("enriched", "equal") | 
                                         L3_int_exp %in% c("enriched", "equal"))
 
+intestine_enriched = promoters_df %>% select(ends_with("_int_exp"))
+intestine_enriched %<>% mutate(LE = embryo_int_exp %in% c("enriched", "equal") ,
+          L1 = L1_int_exp %in% c("enriched", "equal"), 
+          L3 = L3_int_exp %in% c("enriched", "equal")) %>% select(!ends_with("_int_exp"))
 
 promoters_gr = makeGRangesFromDataFrame(intestine_present, keep.extra.columns = T, seqinfo = Seqinfo(genome="ce11"))
+
+cat("There are ")
+cat(length(promoters_gr), append = T)
+cat(" genes present in any stage", append = T)
 ```
+
+Some ChIP-seq experiments use duplicated { gene-name, } stage combinations because of different strains (which are not included in the filenames). Therefore, just enumerate the duplications 1-whatever.
 
 ```{r other-TFs}
 
@@ -79,7 +146,9 @@ mapping$name_stage = paste(mapping$name, mapping$stage, sep="_")
 with_dups = mapping %>% 
   filter(name_stage %in% mapping[which(duplicated(mapping$name_stage)), 'name_stage']) %>% 
    group_by(name_stage) %>% mutate(id = row_number()) 
-with_dups$name_stage = paste(with_dups$name_stage,name_stage, sep=".")
+with_dups$name_stage = paste(with_dups$name_stage,with_dups$id, sep=".")
+
+cat("Duplicates comprise", nrow(with_dups), "files out of", nrow(mapping))
 
 rownames(mapping) <- mapping$path
 mapping[with_dups$path, 'name_stage'] = with_dups$name_stage
@@ -120,21 +189,37 @@ for(TFname in names(all.grs))
 ```{r}
 
 data = as.data.frame(mcols(promoters_gr))
-data =data[,42:ncol(data)]
-moddata= data[rowSums(data)!=0,]
-colSums(as.data.frame(data))
-```
+embryo_present = ifelse(data$embryo_int_exp %in% c('equal', 'enriched'), 1, 0)
+L1_present = ifelse(data$L1_int_exp %in% c('equal', 'enriched'), 1, 0)
+L3_present = ifelse(data$L3_int_exp %in% c('equal', 'enriched'), 1, 0)
 
-```{r}
-mtx_x <- matrix(unlist(moddata), ncol = length(moddata), byrow = TRUE)
-```
+dotnames = str_replace(names(TF.files), '-', '.')
+data %<>% select(all_of(dotnames))
+data %<>% mutate(embryo_present=embryo_present,
+                L1_present=L1_present,
+                L3_present=L3_present
+                )
 
-```{r scaled-hclust-euclidean eval=FALSE}
-heatmap(mtx_x,scale="none")
-```
-
-```{r}
+colSums(data)
 mx = as.matrix(data)
+
+
+mapping2 = mapping
+mapping2$path = NULL
+crossref = data %>% select(ends_with('_present')) %>% mutate(name = rownames(data), dotnames = sub("-",".", rownames(data)  )) 
+cr = inner_join(mapping2,crossref,by='name')
+cr %<>% mutate(dot_name_stage = paste(dotnames, stage,sep = "_"))
+cr.embryo = cr %>% filter(embryo_present == 1 & stage == 'LE') %>% pull(dot_name_stage)
+cr.L1 = cr %>% filter(L1_present == 1& stage == 'L1') %>% pull(dot_name_stage)
+cr.L3 = cr %>% filter(L3_present == 1 & stage == 'L3') %>% pull(dot_name_stage)
+```
+
+
+```{r scaled-hclust-euclidean, eval=FALSE}
+heatmap(mx)
+```
+
+```{r}
 mx.filt = mx[rowSums(mx) >0, ]
 table(rowSums(mx.filt))
 cat("fraction of zero values: ")
@@ -149,82 +234,347 @@ rs = rowSums(mx.ind)
 
 
 # have to remove any full 0 rows/columns for clustering with cos
-mx.ind = mx.ind[rs > 2,]
+#mx.ind = mx.ind[rs > 2,]
 cs = colSums(mx.ind)
 mx.ind = mx.ind[,cs > 0]
+stopifnot(sum(rowSums(mx.ind) == 0)==0)
+stopifnot(sum(colSums(mx.ind) == 0)==0)
+mx.ind.save = mx.ind
+mx.ind = mx.ind[,-which(colnames(mx.ind) == "embryo_present")]
+mx.ind = mx.ind[,-which(colnames(mx.ind) == "L1_present")]
+mx.ind = mx.ind[,-which(colnames(mx.ind) == "L3_present")]
+mx.ind = mx.ind[rs > 0,]
+cs = colSums(mx.ind)
+mx.ind = mx.ind[,cs > 0]
+mx.ind = mx.ind[rowSums(mx.ind) > 0,]
 stopifnot(sum(rowSums(mx.ind) == 0)==0)
 stopifnot(sum(colSums(mx.ind) == 0)==0)
 ```
 
 ```{r apply-cos-dist}
-dist_cos_rows = cosine_dist(mx.ind)
-dist_cos_cols = cosine_dist(t(mx.ind))
+system.time({
+  dist_cos_rows = cosine_dist(mx.ind)
+  dist_cos_cols = cosine_dist(t(mx.ind))})
+rows.euc = dist(mx.ind)
+cols.euc = dist(t(mx.ind))
+```
+
+```{r distance analysis}
+library(factoextra)
+
+fviz_dist(cols.euc) + ggtitle("Euclidean distance matrix between transcription factors")
+fviz_dist(dist_cos_cols) + ggtitle("Cosine distance matrix between transcription factors")
+plot(density(cols.euc), main= "distribution of euclidean distances (TFs)")
+plot(density(dist_cos_cols), main= "distribution of cosine distances (TFs)")
+plot(density(rows.euc), main= "distribution of euclidean distances (genes)")
+plot(density(dist_cos_rows), main= "distribution of cosine distances (genes)")
+
+
+```
+
+```{r heatmaps of distance methods}
+hc.rows.euc = hclust(rows.euc)
+plottable.row.dist.euc = as.matrix(rows.euc)[hc.rows.euc$order, hc.rows.euc$order]
+
+hc.rows.cosine = hclust(dist_cos_rows)
+plottable.row.dist.cosine = as.matrix(dist_cos_rows)[hc.rows.cosine$order, hc.rows.cosine$order]
+
+system.time(
+{
+  hm.euc = Heatmap(plottable.row.dist.euc,
+          cluster_rows=F,
+          cluster_columns=F,
+          show_row_names = F,
+          show_column_names = F,
+          use_raster = T)
+  
+  hm.cos = Heatmap(plottable.row.dist.cosine,
+          cluster_rows=F,
+          cluster_columns=F,
+          show_row_names = F,
+          show_column_names = F,
+          use_raster = T)
+}
+)
+# timing plots has to be like this for some reason
+system.time(print(hm.euc)) #  43.163   3.198  46.379 
+system.time(print(hm.cos)) #  44.618   3.278  47.964 
+
+```
+
+```{r}
+system.time({pcoa.rows.cos = cmdscale(dist_cos_rows,k = 5,eig = T)})
+# user  system elapsed 
+# 337.319   0.909 338.753 
+```
+
+```{r}
+pcoa.rows.cos.df = as.data.frame(pcoa.rows.cos$points)
+proportions(pcoa.rows.cos$eig)[1:5]
+
+ggplot(pcoa.rows.cos.df, aes(x=V1,y=V2)) + geom_point()
+ggplot(pcoa.rows.cos.df, aes(x=V3,y=V2)) + geom_point()
+ggplot(pcoa.rows.cos.df, aes(x=V3,y=V4)) + geom_point()
+```
+
+```{r}
+pcoords = pcoa.rows.cos$points[,1:5]
+fviz_nbclust(pcoords, FUNcluster=kmeans, k.max = 8) 
+k3 = kmeans(pcoords, centers=3)
+k3.sil = cluster::silhouette(k3$cluster,dist=dist_cos_rows)
+fviz_silhouette(k3.sil)
 ```
 
 ```{r hclust-for-screeplot, eval=TRUE}
-hc.cos = hclust(dist_cos_rows, method="average")
-plot(1:length(hc.cos$height),rev(hc.cos$height),  xlim=c(0,50), main="scree for cos.")
+hc.cos.rows = hclust(dist_cos_rows, method="average")
+plot(1:length(hc.cos.rows$height),rev(hc.cos.rows$height),  xlim=c(0,50), main="scree for cos. rows")
 #clusterboot(dist_cos_rows, B=100, bootmethod="boot",clustermethod=disthclustCBI, method="average", k=2)
 #hc.cos.k = cutree(hc.cos, 10)
-hc.cos = hclust(dist_cos_cols, method="average")
-plot(1:length(hc.cos$height),rev(hc.cos$height),  xlim=c(0,100), main="scree for cos. on cols")
+hc.cos.cols = hclust(dist_cos_cols, method="average")
+plot(1:length(hc.cos.cols$height),rev(hc.cos.cols$height),  xlim=c(0,100), main="scree for cos. on columns")
+```
+# Split the data into ELT-2 bound and unbound and recalculate - 
+# ClusterHeatmap won't let you
+# just provide the distance matrix and make the split graph itself
+```{r split-by-elt-2-bound}
+elt.2_anytime = apply(mx.ind[,c('elt.2_LE','elt.2_L1','elt.2_L3')], 1,function(x) any(x>0))
+
+mx.ind.elt2 = lapply(split(mx.ind, ifelse(elt.2_anytime,
+                                          "ELT2_any",
+                                          "ELT2_never")),
+                     function(x){
+                       m=matrix(x, ncol=ncol(mx.ind))
+                       colnames(m) = colnames(mx.ind)
+                       m
+                     })
+rownames(mx.ind.elt2$ELT2_any) <- rownames(mx.ind)[elt.2_anytime]
+rownames(mx.ind.elt2$ELT2_never) <- rownames(mx.ind)[!elt.2_anytime]
+
+clust_obj = lapply(mx.ind.elt2, function(x) {
+    dist_cos_rows = cosine_dist(x)
+    cluster_obj = hclust(dist_cos_rows, method="average")
+  list(dist_cos_rows=dist_cos_rows,
+       cluster_obj=cluster_obj)
+})
+
 ```
 
-```{r pheatmap-add-int.enriched}
-rownames(intestine_enriched) <- sub("-",".", intestine_enriched$name)
+
+```{r pheatmap-add-int.enriched, eval = FALSE}
+
+rownames(intestine_enriched) <- sub("-",".", rownames(intestine_enriched))
+
 int.enriched = data.frame(intestine=factor( ifelse(intestine_enriched[,'enriched'],'yes','no'))) 
 
 rownames(int.enriched) = sub("-",".", intestine_enriched$name)
+
+# Modify ordering of the clusters using clustering callback option
+callback = function(hc, mat){
+    sv = svd(t(mat))$v[,1]
+    dend = reorder(as.dendrogram(hc), wts = sv)
+    as.hclust(dend)
+} 
+# Gives the following even though the svd(t(mat)) works manually:
+# Error in h(simpleError(msg, call)) : 
+#   error in evaluating the argument 'x' in selecting a method for function 't': argument "mat" is missing, with no default
+
 ```
 
-```{r pheatmap-plot}
-ph=pheatmap(mx.ind, clustering_distance_rows = dist_cos_rows,
+```{r pheatmap-plot, eval=FALSE}
+STAGE = "all stages"
+ph=pheatmap(mx.ind, 
+        clustering_distance_rows = dist_cos_rows,
          clustering_distance_cols = dist_cos_cols,
          cutree_rows = 10,
          cutree_cols = 14,
-         annotation_col = int.enriched,
+        # annotation_col = int.enriched,
          show_rownames = F,
          clustering_method = "average",
+         #clustering_callback = callback, # see above note
          color = c('#FFFFCC', '#68001C'), # to match heatmap() colors with 0/1
          main=sprintf("%s TF presence/absence (filter: TF must bind > 2 promoters)", STAGE), 
          legend=FALSE
          )
-pdf(sprintf("hc.%s.noFilter.pdf", STAGE), width=11.5,height=8)
+pdf(sprintf("hc_order.%s.noFilter.pdf", STAGE), width=11.5,height=8)
 ph
 dev.off()
 ```
 
 ```{r ComplexHeatmap}
-Heatmap(mx.ind, 
-        name = "TF bound",
+
+hm = Heatmap(mx.ind, 
+        name = "modENCODE exploration",
+        show_heatmap_legend = FALSE,
+        #heatmap_legend_param = list(title = "TF bound (or intestine present)"),
         col = c('#FFFFCC', '#68001C'),
         width = 8,
         # row settings
-        clustering_distance_rows = dist_cos_rows, 
+        #clustering_distance_rows = dist_cos_rows,
+        clustering_method_rows = "average",
         clustering_method_rows = "average",
         show_row_names = F,
         show_row_dend = F,
-        row_title = "Intestine Present (Embryo)",
-        row_title_rot = 90,
-        left_annotation = rowAnnotation(
-          WTF = rownames(mx.ind) %in% wtf$name,           
-          col = list(WTF = c("TRUE" = "black", "FALSE" = "white"))
-        ),
-        
+        row_title = sprintf("Promoters intestine present (at least one stage) %d", nrow(mx.ind)),
+        row_dend_width = unit(60, "mm"),
+       left_annotation = rowAnnotation(
+      #    WTF = rownames(mx.ind) %in% wtf$geneName,
+      ELT2_bound=elt.2_anytime
+      #    col = list(WTF = c("TRUE" = "black", "FALSE" = "white"),
+      #               ELT2_bound = c("TRUE" = "black", "FALSE" = "white"))
+       ),
+        row_split = elt.2_anytime,
+        column_split = 3,
         # column settings
+        # cluster_columns = FALSE,
         clustering_distance_columns = dist_cos_cols,
         clustering_method_columns = "average",
-        column_labels = intestine_enriched$name,
-        column_title = "ChIP-seq merged peaks bound to Promoters (whole worm)",
-        column_names_rot = 45,
-        bottom_annotation = columnAnnotation(
-          intestine_present = intestine_enriched$enriched,
-          col = list(intestine_present = c("TRUE" = "black", "FALSE" = "#F8F8F8"))
+        column_names_side = "top",
+        #column_labels = c(mapping$name_stage, 'embryo present', 'L1 present', 'L3 present'),
+        column_labels = mapping$name_stage,
+        column_title = sprintf("ChIP-seq merged peaks bound to Promoters (whole worm), %d", ncol(mx.ind)-3),
+        column_dend_height = unit(25, "mm"),
+#       bottom_annotation = columnAnnotation(
+#          intestine_present = intestine_enriched$enriched,
+#          col = list(intestine_present = c("TRUE" = "black", "FALSE" = "#F8F8F8"))
+#       )
+        top_annotation = HeatmapAnnotation(
+          embryo_present = colnames(mx.ind) %in% cr.embryo,
+          L1_present = colnames(mx.ind) %in% cr.L1,
+          L3_present = colnames(mx.ind) %in% cr.L3,
+          col = list(
+            embryo_present = c("TRUE" = "black", "FALSE" = "#F8F8F8"),
+            L1_present = c("TRUE" = "black", "FALSE" = "#F8F8F8"),
+            L3_present = c("TRUE" = "black", "FALSE" = "#F8F8F8"))
+        ),
+use_raster = T
+        )
+        
+pdf(file="ALL_0323.Heatmap.pdf", width=30, height=20)
+hm
+dev.off()
+```
+
+
+```{r stage-plots-embryo}
+
+mx.ind.embryo = mx.ind.save[ mx.ind.save[,'embryo_present'] == 1,]
+emb.dist_cos_rows = cosine_dist(mx.ind.embryo)
+emb.dist_cos_cols = cosine_dist(t(mx.ind.embryo))
+
+hm = Heatmap(mx.ind.embryo, 
+        name = "modENCODE exploration",
+        show_heatmap_legend = FALSE,
+        #heatmap_legend_param = list(title = "TF bound (or intestine present)"),
+        col = c('#FFFFCC', '#68001C'),
+        width = 8,
+        # row settings
+        clustering_distance_rows = emb.dist_cos_rows, 
+        clustering_method_rows = "average",
+        show_row_names = F,
+        show_row_dend = T,
+        row_title = sprintf("Promoters intestine present (embryo) %d", nrow(mx.ind.embryo)),
+        row_dend_width = unit(60, "mm"),
+       left_annotation = rowAnnotation(
+         WTF = rownames(mx.ind.embryo) %in% wtf$name,
+         col = list(WTF = c("TRUE" = "black", "FALSE" = "white"))
+      ),
+        
+        # column settings
+        clustering_distance_columns = emb.dist_cos_cols,
+        clustering_method_columns = "average",
+        column_names_side = "top",
+        column_labels = c(mapping$name_stage, 'embryo present', 'L1 present', 'L3 present'),
+        column_title = sprintf("ChIP-seq merged peaks bound to Promoters (whole worm), %d", ncol(mx.ind.embryo)-3),
+        column_dend_height = unit(25, "mm"),
+#       bottom_annotation = columnAnnotation(
+#          intestine_present = intestine_enriched$enriched,
+#          col = list(intestine_present = c("TRUE" = "black", "FALSE" = "#F8F8F8"))
+#       )
+        top_annotation = HeatmapAnnotation(
+          embryo_present = colnames(mx.ind.embryo) %in% cr.embryo,
+          L1_present = colnames(mx.ind.embryo) %in% cr.L1,
+          L3_present = colnames(mx.ind.embryo) %in% cr.L3,
+          col = list(
+            embryo_present = c("TRUE" = "black", "FALSE" = "#F8F8F8"),
+            L1_present = c("TRUE" = "black", "FALSE" = "#F8F8F8"),
+            L3_present = c("TRUE" = "black", "FALSE" = "#F8F8F8"))
         )
         )
         
+pdf(file="emb.Heatmap.pdf", width=30, height=20)
+hm
+dev.off()
 
 ```
+```{r stage-plots-L1}
+
+mx.ind.L1 = mx.ind[ mx.ind[,'L1_present'] == 1,]
+
+# lost 2 columns
+mx.ind.L1 = mx.ind.L1[,colSums(mx.ind.L1) > 0]
+# lost some TFs in the filter
+cat("lost some TFs:")
+colnames(mx.ind)[! (colnames(mx.ind) %in% colnames(mx.ind.L1))]
+
+mx.ind.L1 <- mx.ind.L1[, ! (colnames(mx.ind.L1) %in% c("embryo_present","L1_present","L3_present"))]
+
+DO_CLUSTER_ROWS = TRUE
+if (DO_CLUSTER_ROWS) { 
+  mx.ind.L1 = mx.ind.L1[rowSums(mx.ind.L1) > 0,]
+  mx.ind.L1 = mx.ind.L1[,colSums(mx.ind.L1) > 0]
+}
+
+L1.dist_cos_rows = cosine_dist(mx.ind.L1)
+L1.dist_cos_cols = cosine_dist(t(mx.ind.L1))
+
+hm = Heatmap(mx.ind.embryo, 
+        name = "modENCODE exploration",
+        show_heatmap_legend = FALSE,
+        #heatmap_legend_param = list(title = "TF bound (or intestine present)"),
+        col = c('#FFFFCC', '#68001C'),
+        width = 8,
+        # row settings
+        clustering_distance_rows = L1.dist_cos_rows, 
+        clustering_method_rows = "average",
+        show_row_names = F,
+        #cluster_rows = L1.hc.rows,
+        show_row_dend = T,
+        row_title = sprintf("Promoters intestine present (L1) %d", nrow(mx.ind.L1)),
+        row_dend_width = unit(60, "mm"),
+      #  left_annotation = rowAnnotation(
+      #    WTF = rownames(mx.ind.L1) %in% wtf$name,
+      #    col = list(WTF = c("TRUE" = "black", "FALSE" = "white"))
+      # ),
+        
+        # column settings
+        clustering_distance_columns = L1.dist_cos_cols,
+        clustering_method_columns = "average",
+        column_names_side = "top",
+        column_labels = c(mapping$name_stage, 'embryo present', 'L1 present', 'L3 present'),
+        column_title = sprintf("ChIP-seq merged peaks bound to Promoters (whole worm), %d", ncol(mx.ind.L1)-3),
+        column_dend_height = unit(25, "mm"),
+#       bottom_annotation = columnAnnotation(
+#          intestine_present = intestine_enriched$enriched,
+#          col = list(intestine_present = c("TRUE" = "black", "FALSE" = "#F8F8F8"))
+#       )
+        # top_annotation = HeatmapAnnotation(
+        #   embryo_present = colnames(mx.ind.L1) %in% cr.embryo,
+        #   L1_present = colnames(mx.ind.L1) %in% cr.L1,
+        #   L3_present = colnames(mx.ind.L1) %in% cr.L3,
+        #   col = list(
+        #     embryo_present = c("TRUE" = "black", "FALSE" = "#F8F8F8"),
+        #     L1_present = c("TRUE" = "black", "FALSE" = "#F8F8F8"),
+        #     L3_present = c("TRUE" = "black", "FALSE" = "#F8F8F8"))
+        #)
+        )
+        
+pdf(file="L1.Heatmap.pdf", width=30, height=20)
+hm
+dev.off()
+
+```
+
+
 ## Adjacency matrix
 ```{r adjacency}
 mx.tf = mx
