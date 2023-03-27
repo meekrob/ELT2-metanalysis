@@ -1,0 +1,24 @@
+---
+title: "Heatmap: All stages modENCODE ChIP-seq overlapping promoters of cell sorted intestine RNA-seq"
+author: "David C. King"
+date: "03/27/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache=TRUE)
+library(tidyverse)
+library(dplyr)
+library(GenomicRanges)
+library(ComplexHeatmap)
+library(RMariaDB)
+library(R.cache)
+
+# for distances between rows/columns in a binary matrix
+cosine_dist = function(df) { 
+  M = as.matrix(df)
+  sim = M / sqrt(rowSums(M*M))
+  sim = sim %*% t(sim)
+  as.dist(1-sim)
+}
+```
