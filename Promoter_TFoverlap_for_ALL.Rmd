@@ -89,14 +89,14 @@ are assigned promoters gene 5' -1Kb/200bp.
 
 The dataset has each promoter in the genome annotated with intestine expression DESeq information, as well as ELT-2 binding status gotten from Kudron et al. 2018.
 ```{r wtf3}
-onishDATA <- dbConnect(
-     drv = RMariaDB::MariaDB(), 
-     username = "worm",
-     host = "129.82.125.11", 
-     port = 3307, dbname = "NishimuraLab"
-)
-wtf = dbReadTableCached(onishDATA, "WTF3")
-dbDisconnect(onishDATA)
+# onishDATA <- dbConnect(
+#      drv = RMariaDB::MariaDB(), 
+#      username = "worm",
+#      host = "129.82.125.11", 
+#      port = 3307, dbname = "NishimuraLab"
+# )
+wtf = dbReadTableCached("WTF3", "NishimuraLab")
+
 
 cat("There are ")
 cat(nrow(wtf), append = T)

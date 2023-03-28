@@ -43,11 +43,11 @@ onishDBConnect<- function(dbName = "NishimuraLab") {
     port = 3307, dbName = dbName,
     timeout = 30
   )  
-  cat("done.", append = TRUE)
+  cat("done connecting.", append = TRUE)
   return(onishDATA)
 }
 
-dbReadTableCached = function(tableName, ...) {
+dbReadTableCached = function(tableName, dbName, ...) {
   
   key = list(tableName)
   data <- loadCache(key)
@@ -56,8 +56,10 @@ dbReadTableCached = function(tableName, ...) {
     return(data);
   }
   cat("Not cached... Loading from database.")
-  DBConnection = onishDBConnect()
-  data=dbReadTable(DBConnection, tableName) 
+  DBConnection = onishDBConnect(dbName)
+  rowsAffected = dbExecute(DBConnection, paste("use", dbName))
+  data=dbReadTable(DBConnection, tableName, dbName) 
+  dbDisconnect(DBConnection)
   saveCache(data, key=key)
   return(data)
 }
