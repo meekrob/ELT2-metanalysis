@@ -74,10 +74,10 @@ system.time({eu.mx.row = dist(mx)})
 system.time({eu.mx.col = dist(t(mx))})
   #  user  system elapsed 
   # 2.311   0.010   2.322 
-system.time({hc.mx.rows = hclust(eu.mx.row)})
+system.time({hc.mx.rows = hclust(eu.mx.row, method = "average")})
   #  user  system elapsed 
   # 0.536   0.037   0.577 
-system.time({hc.mx.cols = hclust(eu.mx.col)})
+system.time({hc.mx.cols = hclust(eu.mx.col, method = "average")})
   #  user  system elapsed 
   # 0.005   0.001   0.006
 ```
@@ -90,10 +90,10 @@ system.time({cos.mx.col = cosine.dist(t(mx))})
   #  user  system elapsed 
   # 0.845   0.010   0.860 
 
-system.time({hc.mx.cosine.rows = hclust(cos.mx.row)})
+system.time({hc.mx.cosine.rows = hclust(cos.mx.row, method = "average")})
   # user  system elapsed 
   # 0.542   0.041   0.587 
-system.time({hc.mx.cosine.cols = hclust(cos.mx.col)})
+system.time({hc.mx.cosine.cols = hclust(cos.mx.col, method = "average")})
   #  user  system elapsed 
   # 0.005   0.000   0.006 
 ```
@@ -113,31 +113,49 @@ hm.euclidean = Heatmap(mx,
         cluster_rows = hc.mx.rows, 
         cluster_columns = hc.mx.cols, 
         heatmap_legend_param = list(title = "euclidean\nTF bound/unbound"),
+        show_heatmap_legend = FALSE,
         show_row_names = FALSE, 
-        show_column_names = FALSE, 
-        show_row_dend = T,
+        show_column_names = T, 
+        show_row_dend = F,
         show_column_dend = T,
         col = hmColors,
+        row_split = 4,
+        column_split = 5,
+        column_names_side = "top",
         use_raster = T)
 
 hm.cosine = Heatmap(mx, 
         cluster_rows = hc.mx.cosine.rows, 
         cluster_columns = hc.mx.cosine.cols, 
         heatmap_legend_param = list(title = "cosine\nTF bound/unbound"),
+        show_heatmap_legend = FALSE,
         show_row_names = FALSE, 
-        show_column_names = FALSE, 
-        show_row_dend = T,
+        show_column_names = T, 
+        show_row_dend = F,
         show_column_dend = T,
         col = hmColors,
+        column_split = 5,
+        column_names_side = "top",
         use_raster = T)
 
 
 system.time(print(hm.euclidean))
-system.time(print(hm.cosine)) 
  #   user  system elapsed 
  # 11.654   2.262  13.958 
+system.time(print(hm.cosine)) 
  #   user  system elapsed 
  # 12.657   2.282  14.993 
+
+
+pdf(file=format(Sys.time(), "plots/%Y-%m-%d-all-heatmap-euc.pdf"), 
+    width=60, height=20)
+hm.euclidean
+dev.off()
+
+pdf(file=format(Sys.time(), "plots/%Y-%m-%d-all-heatmap-cos.pdf"), 
+    width=60, height=20)
+hm.cosine
+dev.off()
 ```
 ```{r bin}
 DBPeakOverlapsBin = ifelse(DBPeakOverlaps > 0, 1,0)
