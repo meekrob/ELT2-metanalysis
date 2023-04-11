@@ -23,12 +23,14 @@ if (!is.null(DBPeakOverlaps)) {
     AllPromoter_binding = dbReadTableCached(onishDATA, "AllPromoter_binding")
     dbDisconnect(onishDATA)
   }
-  cat("calculating overlaps...")
+  cat("combining overlaps...")
   # aggregate overlaps by gene, ChIP-seq experiment
   overlapping = AllPromoter_binding %>% group_by(name, tfStage) %>% summarize(n=n()) 
+  
   # check pha_4 counts
   overlapping %>% filter(tfStage == "pha-4_LE_1")
   overlapping %>% filter(tfStage == "pha-4_L3_1") %>% nrow()
+  
   # pivot by gene name
   DBPeakOverlaps = pivot_wider(overlapping, id_cols = name, names_from = tfStage, values_from = n, values_fill = 0)
   
