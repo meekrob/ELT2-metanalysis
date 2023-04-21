@@ -157,89 +157,44 @@ pdf(file=format(Sys.time(), "plots/%Y-%m-%d-all-heatmap-cos.pdf"),
 hm.cosine
 dev.off()
 ```
-```{r bin}
-DBPeakOverlapsBin = ifelse(DBPeakOverlaps > 0, 1,0)
-mx.bin = as.matrix(DBPeakOverlapsBin)
-rs = rowSums(DBPeakOverlapsBin)
-cs = colSums(DBPeakOverlapsBin)
-cat("The following genes are bound in over 90% of the ChIP-seq experiments:")
-rownames(DBPeakOverlapsBin)[rs > .9*ncol(DBPeakOverlapsBin)]
+```{r ELT-2 binding}
+LE = mx[,'elt-2_LE_1']
+L1 = mx[,'elt-2_L1_1']
+L3 = mx[,'elt-2_L3_1']
+
+elt2_anytime = LE | L1 | L3 
+cat("ELT-2 binds", sum(elt2_anytime), "genes in any of the three stages.")
 ```
 
-```{r euclidean distance}
-system.time({eu.mx.row = dist(mx.bin)})
-  #  user  system elapsed 
-  # 218.859   0.807 219.832
-system.time({eu.mx.col = dist(t(mx.bin))})
-  #  user  system elapsed 
-  # 8.565   0.036   8.601 
-system.time({hc.mx.rows = hclust(eu.mx.row)})
-  #  user  system elapsed 
-  # 6.414   2.053   9.672 
-system.time({hc.mx.cols = hclust(eu.mx.col)})
-  #  user  system elapsed 
-  # 0.005   0.004   0.015 
-```
-
-```{r cosine distance}
-system.time({cos.mx.row = cosine.dist(mx.bin)})
-  #    user  system elapsed 
-  # 217.185   2.265 219.539 
-system.time({cos.mx.col = cosine.dist(t(mx.bin))})
-  #  user  system elapsed 
-  # 2.730   0.014   2.746 
-
-system.time({hc.mx.cosine.rows = hclust(cos.mx.row)})
-  # user  system elapsed 
-  # 5.656   0.382   6.046 
-system.time({hc.mx.cosine.cols = hclust(cos.mx.col)})
-  #  user  system elapsed 
-  # 0.006   0.001   0.006 
-```
-```{r scree}
-plot(1:length(hc.mx.rows$height),rev(hc.mx.rows$height),  xlim=c(0,50), main="scree for euclidean rows")
-plot(1:length(hc.mx.cols$height),rev(hc.mx.cols$height),  xlim=c(0,50), main="scree for euclidean columns")
-
-plot(1:length(hc.mx.cosine.rows$height),rev(hc.mx.cosine.rows$height),  xlim=c(0,50), main="scree for cosine rows")
-plot(1:length(hc.mx.cosine.cols$height),rev(hc.mx.cosine.cols$height),  xlim=c(0,50), main="scree for cosine columns")
-```
-
-```{r}
-countTable = table(mx.bin)
-nlevels = length(countTable)
-
-hmColors = c("#FFFFCC",   "#BE9180", "#B37F74", "#A86D67", "#9D5B5A", "#93484E", "#883641",  "#7D2435", "#721228", "#68001C")
-# adjust levels of palette
-hmColors = c('#FFFFCC', colorRampPalette(c("#A86D67", '#68001C'))(nlevels-1))
-
-hm.euclidean = Heatmap(mx.bin, 
-        cluster_rows = hc.mx.rows, 
-        cluster_columns = hc.mx.cols, 
-        heatmap_legend_param = list(title = "# times a TF is bound in gene promoter"),
+```{r heatmap-ELT-2}
+system.time({
+hm.elt2.binding = Heatmap(mx, 
+        clustering_method_rows = "average",
+        clustering_method_columns = "average",
+        # clustering_distance_columns =  function(u,v) {
+        #   1 - ((u%*%v) / (norm(u,"2")*norm(v,"2")))
+        # },
+        # clustering_distance_rows =  function(u,v) {
+        #   1 - ((u%*%v) / (norm(u,"2")*norm(v,"2")))
+        # },
+        heatmap_legend_param = list(title = "euclidean\nTF bound/unbound"),
+        show_heatmap_legend = FALSE,
         show_row_names = FALSE, 
-        show_column_names = FALSE, 
-        show_row_dend = T,
+        show_column_names = T, 
+        show_row_dend = F,
         show_column_dend = T,
         col = hmColors,
+        row_split = ifelse(elt2_anytime, "ELT-2 bound", "ELT-2 never bound"),
+        column_split = 5,
+        column_names_side = "top",
         use_raster = T)
-
-hm.cosine = Heatmap(mx.bin, 
-        cluster_rows = hc.mx.cosine.rows, 
-        cluster_columns = hc.mx.cosine.cols, 
-        heatmap_legend_param = list(title = "# times a TF is bound in gene promoter"),
-        show_row_names = FALSE, 
-        show_column_names = FALSE, 
-        show_row_dend = T,
-        show_column_dend = T,
-        col = hmColors,
-        use_raster = T)
-
-
-system.time(print(hm.euclidean))
-system.time(print(hm.cosine)) 
- #   user  system elapsed 
- # 26.277   2.839  29.193 
- #   user  system elapsed 
- # 33.472   2.916  36.446 
+})
+# print(hm.elt2.binding)
+pdf(file=format(Sys.time(), "plots/%Y-%m-%d-%H-%M-heatmap-elt2-binding.pdf"), 
+    width=60, height=20)
+hm.elt2.binding
+dev.off()
 ```
+
+
 

@@ -38,7 +38,7 @@ if (!is.null(DBPeakOverlaps)) {
   saveCache(DBPeakOverlaps, key=key)
 }
 
-DBPeakOverlaps[1:10,1:10]
+print(DBPeakOverlaps[1:10,1:10])
 
 
 
