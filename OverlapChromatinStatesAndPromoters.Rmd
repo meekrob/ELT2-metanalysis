@@ -42,7 +42,6 @@ fractionPromoterFunction <- function(Olaps, evansChromatinStates.gr)
 ```
 
 ```{r}
-
 evansChromatinStates.grList = split(evansChromatinStates.gr, evansChromatinStates.gr$stage)
 EE.Olaps = GenomicRanges::findOverlaps(promoters.gr, evansChromatinStates.grList$EE)
 
@@ -51,6 +50,16 @@ L3.Olaps = GenomicRanges::findOverlaps(promoters.gr, evansChromatinStates.grList
 fractionPromoterOlap.EE = fractionPromoterFunction(EE.Olaps,evansChromatinStates.grList$EE)
 
 fractionPromoterOlap.L3 = fractionPromoterFunction(L3.Olaps,evansChromatinStates.grList$L3)
+```
 
+```{r getHighestPromoterCovered EE}
+promoters.olap.EE = promoters.gr[from(EE.Olaps)]
+evansChromatinStates.olap.EE = evansChromatinStates.grList$EE[from(EE.Olaps)]
+df = mcols(promoters.olap.EE)
+df$fractionPromoterCovered = fractionPromoterOlap.EE
+df = cbind(df, mcols(evansChromatinStates.olap.EE))
+df = as.data.frame(df)
+
+ranked.EE = df %>% group_by(geneName) %>% reframe(WBID, geneName, fractionPromoterCovered, accession, stage,rank = rank(-fractionPromoterCovered))
 ```
 
