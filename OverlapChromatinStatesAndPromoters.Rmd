@@ -60,6 +60,21 @@ df$fractionPromoterCovered = fractionPromoterOlap.EE
 df = cbind(df, mcols(evansChromatinStates.olap.EE))
 df = as.data.frame(df)
 
-ranked.EE = df %>% group_by(geneName) %>% reframe(WBID, geneName, fractionPromoterCovered, accession, stage,rank = rank(-fractionPromoterCovered))
+ranked.EE = df %>% group_by(geneName) %>% reframe(WBID, geneName, fractionPromoterCovered, accession, stage,stateID, rank = rank(-fractionPromoterCovered),id_evansChromatinStates)
 ```
 
+```{r getHighestPromoterCovered L3}
+promoters.olap.L3 = promoters.gr[from(L3.Olaps)]
+evansChromatinStates.olap.L3 = evansChromatinStates.grList$L3[from(L3.Olaps)]
+df = mcols(promoters.olap.L3)
+df$fractionPromoterCovered = fractionPromoterOlap.L3
+df = cbind(df, mcols(evansChromatinStates.olap.L3))
+df = as.data.frame(df)
+
+ranked.L3 = df %>% group_by(geneName) %>% reframe(WBID, geneName, fractionPromoterCovered, accession, stage, stateID, rank = rank(-fractionPromoterCovered, ties.method="first"),id_evansChromatinStates)
+```
+
+```{r CSVs for SQL load data from file, eval=FALSE}
+write_csv(ranked.EE, file="OverlapChromatinStatesAndPromoters.csv")
+write_csv(ranked.L3, file="OverlapChromatinStatesAndPromoters.csv", append = T)
+```
