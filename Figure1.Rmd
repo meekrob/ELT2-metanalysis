@@ -218,7 +218,53 @@ states_marked = states[ rownames(mx),]
 ```
 
 ```{r add states}
+# 1 promoter
+# 2 5-prime proximal gene body
+# 3-7 Txn elongation
+# 8-10 Enhancer
+# 11 border
+# 12,15 repeats
+# 13 retro transposons, pseudogenes
+# 14 mixed, tissue specific
+# 17-20 silent/low expression
+# 16 intergenic, silent genes, piRNA, repeats
 
+L3_states_labelled = case_match(
+    states_marked$chromatinState.L3,
+    1 ~ 'promoter',
+    2 ~ 'prime gene body',
+    3:7 ~ 'Txn Elongation',
+    8:10 ~ 'Enhancer',
+    11 ~ 'Border',
+    c(12,15) ~ 'repeats',
+    13 ~ 'retro/pseudogenes',
+    14 ~ 'mixed, tissue-specific',
+    17:20 ~ 'silent/low expression',
+    16 ~ 'intergenic'
+)
+
+hm.states = Heatmap(mx, 
+        #cluster_rows = hc.mx.rows, 
+        cluster_columns = hc.mx.cols, 
+        heatmap_legend_param = list(title = "euclidean\nTF bound/unbound"),
+        show_heatmap_legend = FALSE,
+        show_row_names = FALSE, 
+        left_annotation = rowAnnotation(
+          statesL3 = L3_states_labelled
+        ),
+        show_column_names = T, 
+        show_row_dend = F,
+        show_column_dend = T,
+        col = hmColors,
+        row_split = ifelse(elt2_anytime, "ELT-2 bound", "ELT-2 never bound"),
+        column_split = 5,
+        column_names_side = "top",
+        use_raster = T)
+
+pdf(file=format(Sys.time(), "plots/%Y-%m-%d-%H-%M-heatmap-states-labeled.pdf"), 
+    width=60, height=20)
+hm.states
+dev.off()
 ```
 
 
