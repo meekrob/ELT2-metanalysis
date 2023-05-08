@@ -23,7 +23,7 @@ cosine.dist = function(df) {
   sim = sim %*% t(sim)
   as.dist(1-sim)
 }
-source('DBPeakOverlaps.R', echo = T) # sources DB_connect.R
+source('OnishRDB/R/DBPeakOverlaps.R', echo = T, chdir=T) # sources DB_connect.R
 ```
 
 ```{r intestine present genes}
@@ -194,6 +194,31 @@ pdf(file=format(Sys.time(), "plots/%Y-%m-%d-%H-%M-heatmap-elt2-binding.pdf"),
     width=60, height=20)
 hm.elt2.binding
 dev.off()
+```
+```{r add evans chromatin-states}
+source('OnishRDB/R/PromoterChromatinStatesOverlap.R', chdir=T)
+```
+
+```{r}
+states.EE = PromoterChromatinStatesOverlap.df %>% 
+  filter(stage == 'EE' & rank == 1) %>%
+  select(geneName, stateDescriptionID) %>%
+  rename(stateDescriptionID = "chromatinState.EE")
+
+states.L3 = PromoterChromatinStatesOverlap.df %>% 
+  filter(stage == 'L3' & rank == 1) %>%
+  select(geneName, stateDescriptionID) %>%
+  rename(stateDescriptionID = "chromatinState.L3")
+
+states = full_join(states.EE, states.L3, by="geneName")
+
+rownames(states) <- states$geneName
+
+states_marked = states[ rownames(mx),]
+```
+
+```{r add states}
+
 ```
 
 

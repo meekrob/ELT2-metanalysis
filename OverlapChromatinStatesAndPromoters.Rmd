@@ -78,3 +78,16 @@ ranked.L3 = df %>% group_by(geneName) %>% reframe(WBID, geneName, fractionPromot
 write_csv(ranked.EE, file="OverlapChromatinStatesAndPromoters.csv")
 write_csv(ranked.L3, file="OverlapChromatinStatesAndPromoters.csv", append = T)
 ```
+
+```{r merge with promoter/peak overlaps}
+source('OnishRDB/R/DBPeakOverlaps.R', chdir = T)
+head(DBPeakOverlaps)
+EE.states = ranked.EE %>% filter(rank == 1)
+L3.states = ranked.L3 %>% filter(rank == 1)
+nrow(EE.states)
+nrow(L3.states)
+EE.df = data.frame(name=EE.states$geneName, state=EE.states$stateID)
+L3.df = data.frame(name=L3.states$geneName, state=L3.states$stateID)
+combined = left_join(DBPeakOverlaps, EE.df, by = 'name') %>% rename(state = "state.EE")
+combined = left_join(combined, L3.df, by = 'name') %>% rename(state = "state.L3")
+```
