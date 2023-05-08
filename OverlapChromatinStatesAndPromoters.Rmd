@@ -1,0 +1,56 @@
+---
+title: "OverlapChromatinStatesAndPromoters"
+author: "David C. King"
+date: "2023-05-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(magrittr)
+library(RMariaDB)
+library(GenomicRanges)
+```
+
+```{r getData}
+source('onishRDB/R/getEvansChromatinStatesAsGRanges.R', chdir = TRUE)
+source('onishRDB/R/getPromotersAsGRanges.R', chdir = TRUE)
+```
+```{r fractionPromoterFunction}
+fractionPromoterFunction <- function(Olaps, evansChromatinStates.gr)
+{
+  promoters.olap = promoters.gr[from(Olaps)]
+  evansChromatinStates.olap = evansChromatinStates.gr[to(Olaps)]
+  
+  first.start = start(promoters.olap)
+  first.end = end(promoters.olap)
+  second.start = start(evansChromatinStates.olap)
+  second.end = end(evansChromatinStates.olap)
+  
+  olapRanges = cbind(first.start,first.end,second.start,second.end)
+  
+  bpOverlap = apply(olapRanges, 
+        1, 
+        function(x) {min(x[[2]], x[[4]])- max(x[[1]], x[[3]])})
+  
+  stopifnot(all(bpOverlap >= 0)) # 0 overlap means continuous
+  
+  return(bpOverlap / width(promoters.olap));
+}
+```
+
+```{r}
+
+evansChromatinStates.grList = split(evansChromatinStates.gr, evansChromatinStates.gr$stage)
+EE.Olaps = GenomicRanges::findOverlaps(promoters.gr, evansChromatinStates.grList$EE)
+
+L3.Olaps = GenomicRanges::findOverlaps(promoters.gr, evansChromatinStates.grList$L3)
+
+fractionPromoterOlap.EE = fractionPromoterFunction(EE.Olaps,evansChromatinStates.grList$EE)
+
+fractionPromoterOlap.L3 = fractionPromoterFunction(L3.Olaps,evansChromatinStates.grList$L3)
+
+```
+
