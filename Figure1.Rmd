@@ -217,6 +217,35 @@ rownames(states) <- states$geneName
 states_marked = states[ rownames(mx),]
 ```
 
+```{r EE.states-table}
+EE.table = table(states_marked$chromatinState.EE, states_marked$ELT2.bound)
+EE.table.df = as.data.frame.matrix(EE.table)
+statedescripts = read.table("evans.states.list.txt", sep="\t", header=F,quote="")
+rownames(EE.table.df) <- statedescripts$V2
+knitr::kable(EE.table.df)
+```
+```{r L3.states-table}
+L3.table = table(states_marked$chromatinState.L3, states_marked$ELT2.bound)
+L3.table.df = as.data.frame.matrix(L3.table)
+statedescripts = read.table("evans.states.list.txt", sep="\t", header=F,quote="")
+rownames(L3.table.df) <- statedescripts$V2
+colnames(L3.table.df) <- c("never","at least one stage")
+knitr::kable(L3.table.df)
+L3.table.mx = as.matrix(L3.table.df)
+rownames(L3.table.mx) <- as.character(1:20)
+crunk = hclust(dist(L3.table.mx))
+plot(crunk, main="Reduce the number of states to show\nfor L3 chromatin states")
+# 7 :Txn elongation V: introns/repeats
+# 12,15,16: Repeats, intergenic, H3K9me2
+# 17,20: Pc/H3K27me3: low/silent and pseudogenes
+# 11, 6, 1, 3: border/low/promoter/Txn exon
+
+mixed.table.mx = as.matrix(cbind(EE.table.df,L3.table.df))
+rownames(mixed.table.mx) <- as.character(1:20)
+crunk2 = hclust(dist(mixed.table.mx))
+plot(crunk2)
+```
+
 ```{r add states}
 # 1 promoter
 # 2 5-prime proximal gene body
@@ -231,17 +260,37 @@ states_marked = states[ rownames(mx),]
 
 L3_states_labelled = case_match(
     states_marked$chromatinState.L3,
-    1 ~ 'promoter',
-    2 ~ 'prime gene body',
     3:7 ~ 'Txn Elongation',
-    8:10 ~ 'Enhancer',
-    11 ~ 'Border',
     c(12,15) ~ 'repeats',
+    1 ~ 'promoter',
+    2 ~ '5-prime gene body',
+    8:10 ~ 'Enhancer',
+    16 ~ 'intergenic',
+    11 ~ 'Border',
     13 ~ 'retro/pseudogenes',
     14 ~ 'mixed, tissue-specific',
-    17:20 ~ 'silent/low expression',
-    16 ~ 'intergenic'
+    17:20 ~ 'silent/low expression'
 )
+# 7 :Txn elongation V: introns/repeats
+# 12,15,16: Repeats, intergenic, H3K9me2
+# 17,20: Pc/H3K27me3: low/silent and pseudogenes
+# 11, 6, 1, 3: border/low/promoter/Txn exon
+L3_states_grouped = case_match(
+  states_marked$chromatinState.L3,
+  7 ~ 'Txn elongation V: introns/repeats',
+  c(12,15,16) ~ 'Repeats, intergenic, H3K9me2',
+  c(17,20) ~ 'Pc/H3K27me3: low/silent and pseudogenes',
+  c(11, 6, 1, 3,5) ~ 'border/low/promoter/Txn exon',
+  .default = 'other'
+)
+
+grouped_names = c('Txn elongation V: introns/repeats',
+                  'Repeats, intergenic, H3K9me2',
+                  'Pc/H3K27me3: low/silent and pseudogenes',
+                  'border/low/promoter/Txn exon',
+                  'other')
+L3_states_colors = RColorBrewer::brewer.pal(5,"Dark2")
+names(L3_states_colors) <- grouped_names
 
 hm.states = Heatmap(mx, 
         #cluster_rows = hc.mx.rows, 
@@ -249,8 +298,9 @@ hm.states = Heatmap(mx,
         heatmap_legend_param = list(title = "euclidean\nTF bound/unbound"),
         show_heatmap_legend = FALSE,
         show_row_names = FALSE, 
-        left_annotation = rowAnnotation(
-          statesL3 = L3_states_labelled
+        right_annotation = rowAnnotation(
+          statesL3 = L3_states_grouped,
+          col = list(statesL3=L3_states_colors)
         ),
         show_column_names = T, 
         show_row_dend = F,
@@ -265,6 +315,27 @@ pdf(file=format(Sys.time(), "plots/%Y-%m-%d-%H-%M-heatmap-states-labeled.pdf"),
     width=60, height=20)
 hm.states
 dev.off()
+```
+
+```{r}
+
+
+
+```
+```{r search-for-assoc}
+
+states_marked$ELT2.bound = elt2_anytime
+
+# not significant
+chisq.test(table(states_marked[,3:4]))
+
+# visualize
+states.ca = dudi.coa(t(as.data.frame.matrix(ex)), scannf=FALSE, nf=2)
+
+	
+get_ca_row(states.ca)
+
+#fviz_ca_biplot(states.ca,repel=TRUE,col.col="brown", col.row="purple")
 ```
 
 
