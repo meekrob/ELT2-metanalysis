@@ -317,11 +317,113 @@ hm.states
 dev.off()
 ```
 
-```{r}
+```{r states-grouped-numerically}
 
+L3_states_renumbering = c(
+  1.0,  # Promoter
+  1.05, # 5' proximal, gene body
+  1.1,  # Txn Elongation I: exon
+  1.15, # Txn elongation II: exon/intron
+  1.2,  # Txn elongation III: exon and gene end
+  1.25, # Txn elongation IV: low expression/repeats
+  1.3,  # Txn elongation V: introns/repeats
+  2.0,  # Enhancer I: intronic
+  2.05, # Enhancer II: intergenic
+  2.1,  # Enhancer III: weak 
+  3,    # border
+  4,    # Repeats, low expr introns, AT rich
+  5,    # Retrotransposons, pseudogenes, H3K9me3, H3K27me3
+  6,    # mixed,tissue-specific
+  7,    # Repeats, RNA pseudogenes, H3K9me2
+  8,    # Intergenic, silent genes, piRNAs, repeats
+  9,    # Pc/H3K27me3 I: low expr/silent and pseudogenes
+  9.05, # Pc/H3K27me3 II:Low expr/silent
+  9.1,  # Pc/H3K27me3 III:low expr/silent gene body
+  9.15  # H3K9me3 & H3K27me3: silent genes and pseudogenes
+)
+
+
+L3_states_quantified = case_match(
+    states_marked$chromatinState.L3,
+  1 ~ 1.0,  # Promoter
+  2 ~ 1.05, # 5' proximal, gene body
+  3 ~ 1.1,  # Txn Elongation I: exon
+  4 ~ 1.15, # Txn elongation II: exon/intron
+  5 ~ 1.2,  # Txn elongation III: exon and gene end
+  6 ~ 1.25, # Txn elongation IV: low expression/repeats
+  7 ~ 1.3,  # Txn elongation V: introns/repeats
+  8 ~ 2.0,  # Enhancer I: intronic
+  9 ~ 2.05, # Enhancer II: intergenic
+  10 ~ 2.1,  # Enhancer III: weak 
+  11 ~ 3,    # border
+  12 ~ 4,    # Repeats, low expr introns, AT rich
+  14 ~ 5,    # mixed,tissue-specific
+  15 ~ 6,    # Repeats, RNA pseudogenes, H3K9me2
+  16 ~ 7,    # Intergenic, silent genes, piRNAs, repeats
+  17 ~ 8,    # Pc/H3K27me3 I: low expr/silent and pseudogenes
+  18 ~ 8.05, # Pc/H3K27me3 II:Low expr/silent
+  19 ~ 8.1,  # Pc/H3K27me3 III:low expr/silent gene body
+  20 ~ 8.15,  # H3K9me3 & H3K27me3: silent genes and pseudogenes
+  13 ~ 8.2    # Retrotransposons, pseudogenes, H3K9me3, H3K27me3
+)
+
+L3_states_colors = RColorBrewer::brewer.pal(8,"Dark2")
+names(L3_states_colors) <- c('promoter/Txn elongation (7 states)',
+                             'Enhancer (3 states)',
+                             'border',
+                             'Repeats, low expr introns, AT rich',
+                             'mixed,tissue-specific',
+                             'Repeats, RNA pseudogenes, H3K9me2',
+                             'Intergenic, silent genes, piRNAs, repeats',
+                             'Pc/H3K27me3, H3K9me3 (5 states)'
+                  )
+
+L3_states_legend = case_match(
+    states_marked$chromatinState.L3,
+  1:7 ~ 'promoter/Txn elongation (7 states)',
+  8:10 ~ 'Enhancer (3 states)',
+  3 ~  'border',
+  4 ~ 'Repeats, low expr introns, AT rich',
+  5 ~  'mixed,tissue-specific',
+  6 ~ 'Repeats, RNA pseudogenes, H3K9me2',
+  7 ~ 'Intergenic, silent genes, piRNAs, repeats',
+  11 ~ 'border',
+  12 ~ 'Repeats, low expr introns, AT rich',
+  14 ~ 'mixed,tissue-specific',
+  15 ~ 'Repeats, RNA pseudogenes, H3K9me2',
+  16 ~ 'Intergenic, silent genes, piRNAs, repeats',
+  c(17:20, 13) ~ 'Pc/H3K27me3, H3K9me3 (5 states)'
+ 
+)
+
+hm.states.clustered = Heatmap(mx, 
+        row_order = hc_L3_states_quantified$order, 
+        cluster_columns = hc.mx.cols, 
+        heatmap_legend_param = list(title = "euclidean\nTF bound/unbound"),
+        show_heatmap_legend = FALSE,
+        show_row_names = FALSE, 
+        right_annotation = rowAnnotation(
+          statesL3 = L3_states_legend,
+          col = list(statesL3=L3_states_colors)
+        ),
+        show_column_names = T, 
+        show_row_dend = F,
+        show_column_dend = T,
+        col = hmColors,
+        row_split = ifelse(elt2_anytime, "ELT-2 bound", "ELT-2 never bound"),
+        column_split = 5,
+        column_names_side = "top",
+        use_raster = T)
+
+pdf(file=format(Sys.time(), "plots/%Y-%m-%d-%H-%M-heatmap-states-clustered.pdf"), 
+    width=50, height=20)
+hm.states.clustered
+dev.off()
 
 
 ```
+
+
 ```{r search-for-assoc}
 
 states_marked$ELT2.bound = elt2_anytime
