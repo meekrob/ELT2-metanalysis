@@ -23,6 +23,12 @@ cosine.dist = function(df) {
   sim = sim %*% t(sim)
   as.dist(1-sim)
 }
+cosine.sim = function(df) { 
+  M = as.matrix(df)
+  sim = M / sqrt(rowSums(M*M))
+  sim = sim %*% t(sim)
+  sim
+}
 source('OnishRDB/R/DBPeakOverlaps.R', echo = T, chdir=T) # sources DB_connect.R
 ```
 
@@ -215,6 +221,7 @@ states = full_join(states.EE, states.L3, by="geneName")
 rownames(states) <- states$geneName
 
 states_marked = states[ rownames(mx),]
+states_marked$ELT2.bound = elt2_anytime
 ```
 
 ```{r EE.states-table}
@@ -367,6 +374,8 @@ L3_states_quantified = case_match(
   13 ~ 8.2    # Retrotransposons, pseudogenes, H3K9me3, H3K27me3
 )
 
+hc_L3_states_quantified = hclust(dist(L3_states_quantified))
+
 L3_states_colors = RColorBrewer::brewer.pal(8,"Dark2")
 names(L3_states_colors) <- c('promoter/Txn elongation (7 states)',
                              'Enhancer (3 states)',
@@ -426,8 +435,6 @@ dev.off()
 
 ```{r search-for-assoc}
 
-states_marked$ELT2.bound = elt2_anytime
-
 # not significant
 chisq.test(table(states_marked[,3:4]))
 
@@ -440,5 +447,167 @@ get_ca_row(states.ca)
 #fviz_ca_biplot(states.ca,repel=TRUE,col.col="brown", col.row="purple")
 ```
 
+```{r ML}
+dmx = data.frame(mx)
+dmx$elt2.status = ifelse(elt2_anytime,1, 0)
+dmx$elt.2_LE_1 = NULL
+dmx$elt.2_L1_1 = NULL
+dmx$elt.2_L3_1 = NULL
+# Stratified sampling with the rsample package
+set.seed(123)
+split <- initial_split(dmx, prop = 0.7)
+dmx_train  <- training(split)
+dmx_test   <- testing(split)
 
 
+set.seed(123)
+cv_model_pcr <- train(
+  elt2.status ~ ., 
+  data = dmx_train, 
+  method = "pcr",
+  trControl = trainControl(method = "cv", number = 10),
+  preProcess = c("center"),
+  tuneLength = 100
+  )
+
+cv_model_pcr$bestTune
+cv_model_pcr$results %>% dplyr::filter(ncomp == pull(cv_model_pcr$bestTune))
+```
+
+```{r diagnostics}
+ggplot(cv_model_pcr)
+vip(cv_model_pcr, num_features = 20, method = "model")
+
+```
+```{r logistic regression}
+dmx$elt2.status = factor(ifelse(elt2_anytime,"bound", "never bound"))
+split <- initial_split(dmx, prop = 0.7)
+dmx_train  <- training(split)
+dmx_test   <- testing(split)
+
+
+set.seed(123)
+cv_model1 <- train(
+  elt2.status ~ fos.1_L2_1, 
+  data = dmx_train, 
+  method = "glm",
+  family = "binomial",
+  trControl = trainControl(method = "cv", number = 10)
+)
+
+set.seed(123)
+cv_model2 <- train(
+  elt2.status ~ fos.1_L2_1 + nhr.80_yAd_1, 
+  data = dmx_train, 
+  method = "glm",
+  family = "binomial",
+  trControl = trainControl(method = "cv", number = 10)
+)
+
+set.seed(123)
+cv_model3 <- train(
+  elt2.status ~ fos.1_L2_1 + nhr.80_yAd_1 + nhr.28_L4_1, 
+  data = dmx_train, 
+  method = "glm",
+  family = "binomial",
+  trControl = trainControl(method = "cv", number = 10)
+)
+```
+
+
+```{r}
+summary(
+  resamples(
+    list(
+      model1 = cv_model1, 
+      model2 = cv_model2, 
+      model3 = cv_model3
+    )
+  )
+)$statistics$Accuracy
+pred_class2 <- predict(cv_model2, dmx_train)
+pred_class3 <- predict(cv_model3, dmx_train)
+confusionMatrix(
+  data = relevel(pred_class2, ref = "bound"), 
+  reference = relevel(dmx_train$elt2.status, ref = "bound")
+)
+```
+```{r}
+# Compute predicted probabilities
+m1_prob <- predict(cv_model1, dmx_train, type = "prob")$bound
+m2_prob <- predict(cv_model2, dmx_train, type = "prob")$bound
+
+# Compute AUC metrics for cv_model1 and cv_model3
+perf1 <- prediction(m1_prob, dmx_train$elt2.status) %>%
+  performance(measure = "tpr", x.measure = "fpr")
+perf2 <- prediction(m2_prob, dmx_train$elt2.status) %>%
+  performance(measure = "tpr", x.measure = "fpr")
+
+# Plot ROC curves for cv_model1 and cv_model2
+plot(perf1, col = "black", lty = 2)
+plot(perf2, add = TRUE, col = "blue")
+legend(0.8, 0.2, legend = c("cv_model1", "cv_model2"),
+       col = c("black", "blue"), lty = 2:1, cex = 0.6)
+```
+
+```{r random forests}
+library('randomForest')
+binaryClassifier = randomForest(y=dmx$elt2.status,x=dmx %>% select(-elt2.status), ntrees=2000, sampsize=c(60,60), importance = T)
+binaryClassifier$confusion
+as.data.frame(round(importance(binaryClassifier),2)) %>% arrange(-MeanDecreaseAccuracy) %>% head(20)
+as.data.frame(round(importance(binaryClassifier),2)) %>% arrange(-MeanDecreaseAccuracy) %>% head(20) %>% rownames()
+
+```
+
+```{r heatmap-randomforest-importance}
+dmxx = dmx %>% select(-elt2.status) %>% as.matrix()
+
+# probability of each prediction
+decision_p = apply(predict(binaryClassifier,type = "prob"), 1, max)
+
+MeanDecreaseAccuracy = as.data.frame(importance(binaryClassifier))$MeanDecreaseAccuracy
+dmxx.decr = dmxx[,order(-MeanDecreaseAccuracy)]
+dmxx.decr[1:5,1:5]
+
+MeanDecreaseAccuracy = MeanDecreaseAccuracy[order(-MeanDecreaseAccuracy)]
+
+a = MeanDecreaseAccuracy > 14
+b = MeanDecreaseAccuracy > 10
+c = MeanDecreaseAccuracy > 5
+labs = rep('[-2.3,5]',length(a))
+labs[c] <- '(5,10]'
+labs[b] <- '(10,14]'
+labs[a] <- '(14,16]'
+
+table(labs)
+labs = factor(labs, levels = rev(c('[0,5]','(5,10]','(10,14]','(14,16]')))
+
+# just put the values as a barplot on top of the graph
+column_ha = HeatmapAnnotation(Importance=anno_barplot(MeanDecreaseAccuracy, baseline=-2.3))
+
+row_ha = rowAnnotation(PredictionProbability=anno_barplot(decision_p))
+
+hm.rf = Heatmap(dmxx.decr,
+        cluster_rows = FALSE,
+        row_order = order(decision_p,decreasing = T),
+        column_title = "Random forest: which factors account for ELT-2 bound/not bound",
+        cluster_columns = FALSE,
+        top_annotation = column_ha,
+        left_annotation = row_ha,
+        heatmap_legend_param = list(title = "random forest classifier"),
+        show_heatmap_legend = FALSE,
+        show_row_names = FALSE, 
+        show_column_names = T, 
+        show_row_dend = F,
+        show_column_dend = T,
+        col = hmColors,
+        row_split = ifelse(elt2_anytime, "ELT-2 bound", "ELT-2 never bound"),
+        column_split = labs,
+        column_names_side = "top",
+        use_raster = T)
+
+pdf(file=format(Sys.time(), "plots/%Y-%m-%d-%H-%M-heatmap-random-forests.pdf"), 
+    width=50, height=20)
+hm.rf
+dev.off()
+```
