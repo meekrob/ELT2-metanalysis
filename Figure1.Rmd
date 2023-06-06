@@ -436,7 +436,9 @@ dev.off()
 ```{r search-for-assoc}
 
 # not significant
-chisq.test(table(states_marked[,3:4]))
+test.out = chisq.test(table(states_marked[,3:4]))
+table(states_marked[,3:4])  %>% mosaicplot(shade = T, main = "No association between chromatin state in the\n promoters of intestine expressed genes and\n the status of ELT-2 binding", sub="p-value = .37") 
+
 
 # visualize
 states.ca = dudi.coa(t(as.data.frame.matrix(ex)), scannf=FALSE, nf=2)
