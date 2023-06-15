@@ -50,17 +50,28 @@ enrichedmentPattern = DBPeakOverlapsIntestinePresent %>% select(name, WBID, embr
 DBPeakOverlapsIntestinePresent %<>% column_to_rownames("name") %>% select(-WBID, -embryo, -L1, -L3)
 
 
+embryo.DBPeakOverlapsIntestinePresent = intestinePresentDB %>% 
+  filter( is.na(intestinePresentDB$L1) & 
+          is.na(intestinePresentDB$L3)) %>% 
+  inner_join(DBPeakOverlaps, by = "name")
+
+embryo.DBPeakOverlapsIntestinePresent %<>% column_to_rownames("name") %>% 
+  select(-WBID, -embryo, -L1, -L3)
+
 sum(!is.na(DBPeakOverlapsIntestinePresent))
 naOrZero = function(x) { is.na(x) | (x == 0)}
 mx = ifelse(naOrZero(DBPeakOverlapsIntestinePresent), 0, 1)
-
+embryo.mx = ifelse(naOrZero(embryo.DBPeakOverlapsIntestinePresent), 0, 1)
 ```
 
 
 ```{r count zero fraction}
 
 fractionZero = sum(mx == 0) / length(mx)
-cat("fraction of zero cells:", fractionZero)
+cat("fraction of zero cells:", fractionZero,"\n")
+
+embryo.fractionZero = sum(embryo.mx == 0) / length(embryo.mx)
+cat("fraction of zero embryo cells:", embryo.fractionZero,"\n")
 ```
 
 
@@ -71,6 +82,11 @@ rs = rowSums(mx)
 cs = colSums(mx)
 cat("The following genes are bound in over 90% of the ChIP-seq experiments:")
 rownames(mx)[rs > .9*ncol(mx)]
+
+rs = rowSums(embryo.mx)
+cs = colSums(embryo.mx)
+cat("Embryo: The following genes are bound in over 90% of the ChIP-seq experiments:")
+rownames(embryo.mx)[rs > .9*ncol(embryo.mx)]
 ```
 
 ```{r euclidean distance}
@@ -84,6 +100,20 @@ system.time({hc.mx.rows = hclust(eu.mx.row, method = "average")})
   #  user  system elapsed 
   # 0.536   0.037   0.577 
 system.time({hc.mx.cols = hclust(eu.mx.col, method = "average")})
+  #  user  system elapsed 
+  # 0.005   0.001   0.006
+```
+```{r embryo euclidean distance}
+system.time({embryo.eu.mx.row = dist(embryo.mx)})
+  #  user  system elapsed 
+  # 0.609   0.002   0.611
+system.time({embryo.eu.mx.col = dist(t(embryo.mx))})
+  #  user  system elapsed 
+  # 0.230   0.002   0.231 
+system.time({embryo.hc.mx.rows = hclust(embryo.eu.mx.row, method = "average")})
+  #  user  system elapsed 
+  # 0.021   0.002   0.025 
+system.time({embryo.hc.mx.cols = hclust(embryo.eu.mx.col, method = "average")})
   #  user  system elapsed 
   # 0.005   0.001   0.006
 ```
@@ -103,12 +133,36 @@ system.time({hc.mx.cosine.cols = hclust(cos.mx.col, method = "average")})
   #  user  system elapsed 
   # 0.005   0.000   0.006 
 ```
+```{r embryo cosine distance}
+system.time({embryo.cos.mx.row = cosine.dist(embryo.mx)})
+  #    user  system elapsed 
+  # 1.099   0.016   1.119
+system.time({embryo.cos.mx.col = cosine.dist(t(embryo.mx))})
+  #  user  system elapsed 
+  # 0.287   0.002   0.290 
+
+system.time({embryo.hc.mx.cosine.rows = hclust(embryo.cos.mx.row, method = "average")})
+  # user  system elapsed 
+  # 0.019   0.000   0.020 
+# system.time({embryo.hc.mx.cosine.cols = hclust(embryo.cos.mx.col, method = "average")})
+# Error in hclust(embryo.cos.mx.col, method = "average") : 
+#   NA/NaN/Inf in foreign function call (arg 10)
+# Timing stopped at: 0.002 0 0.002
+```
+
 ```{r scree}
 plot(1:length(hc.mx.rows$height),rev(hc.mx.rows$height),  xlim=c(0,50), main="scree for euclidean rows")
 plot(1:length(hc.mx.cols$height),rev(hc.mx.cols$height),  xlim=c(0,50), main="scree for euclidean columns")
 
 plot(1:length(hc.mx.cosine.rows$height),rev(hc.mx.cosine.rows$height),  xlim=c(0,50), main="scree for cosine rows")
 plot(1:length(hc.mx.cosine.cols$height),rev(hc.mx.cosine.cols$height),  xlim=c(0,50), main="scree for cosine columns")
+```
+```{r embryo scree}
+plot(1:length(embryo.hc.mx.rows$height),rev(embryo.hc.mx.rows$height),  xlim=c(0,50), main="embryo scree for euclidean rows")
+plot(1:length(embryo.hc.mx.cols$height),rev(embryo.hc.mx.cols$height),  xlim=c(0,50), main="embryo scree for euclidean columns")
+
+plot(1:length(embryo.hc.mx.cosine.rows$height),rev(embryo.hc.mx.cosine.rows$height),  xlim=c(0,50), main="embryo scree for cosine rows")
+#plot(1:length(hc.mx.cosine.cols$height),rev(hc.mx.cosine.cols$height),  xlim=c(0,50), main="scree for cosine columns")
 ```
 
 ```{r}
@@ -153,16 +207,81 @@ system.time(print(hm.cosine))
  # 12.657   2.282  14.993 
 
 
-pdf(file=format(Sys.time(), "plots/%Y-%m-%d-all-heatmap-euc.pdf"), 
+pdf(file=format(Sys.time(), "plots/all-heatmap-euc-%Y-%m-%d.pdf"), 
     width=60, height=20)
 hm.euclidean
 dev.off()
 
-pdf(file=format(Sys.time(), "plots/%Y-%m-%d-all-heatmap-cos.pdf"), 
+pdf(file=format(Sys.time(), "plots/all-heatmap-cos-%Y-%m-%d.pdf"), 
     width=60, height=20)
 hm.cosine
 dev.off()
 ```
+```{r embryo Heatmaps}
+hmColors = c('#FFFFCC',  '#68001C')
+
+embryo.hm.euclidean = Heatmap(embryo.mx, 
+        cluster_rows = embryo.hc.mx.rows, 
+        cluster_columns = embryo.hc.mx.cols, 
+        heatmap_legend_param = list(title = "euclidean\nTF bound/unbound"),
+        show_heatmap_legend = FALSE,
+        show_row_names = FALSE, 
+        show_column_names = T, 
+        show_row_dend = F,
+        show_column_dend = T,
+        col = hmColors,
+        row_split = 4,
+        column_split = 5,
+        column_names_side = "top",
+        use_raster = T)
+pdf(file=format(Sys.time(), "plots/embryo-heatmap-euc-%Y-%m-%d.pdf"), 
+    width=60, height=20)
+hm.euclidean
+dev.off()
+
+```
+
+```{r embryo heatmap-ELT-2}
+embryo.ELT2bound = embryo.mx[,'elt-2_LE_1']
+
+embryo.mx.noELT2 = embryo.mx[,-which(colnames(embryo.mx) == 'elt-2_LE_1')]
+
+dex = dist(t(embryo.mx.noELT2))
+hc_cols = hclust(dex, method = "average")
+function(hc, mat){
+    sv = svd(t(mat))$v[,c(2)]
+    dend = reorder(as.dendrogram(hc), wts = sv^2)
+    as.hclust(dend)
+}
+
+hc_cols_svd = callback(hc_cols, t(embryo.mx.noELT2))
+# restore these two fields
+hc_cols_svd$dist.method = hc_cols$dist.method
+hc_cols_svd$method = hc_cols$method
+
+system.time({
+hm.embryo.elt2.binding = Heatmap(embryo.mx.noELT2, 
+        clustering_method_rows = "average",
+        cluster_columns = hc_cols_svd,
+        heatmap_legend_param = list(title = "euclidean\nTF bound/unbound"),
+        show_heatmap_legend = FALSE,
+        show_row_names = FALSE, 
+        show_column_names = T, 
+        show_row_dend = F,
+        show_column_dend = T,
+        col = hmColors,
+        row_split = ifelse(embryo.ELT2bound, "ELT-2 bound", "ELT-2 never bound"),
+        column_split = 7,
+        column_names_side = "top",
+        use_raster = T)
+})
+# print(hm.elt2.binding)
+pdf(file=format(Sys.time(), "plots/heatmap-embryo-elt2-binding-%Y-%m-%d-%H-%M.pdf"), 
+    width=60, height=20)
+hm.embryo.elt2.binding
+dev.off()
+```
+
 ```{r ELT-2 binding}
 LE = mx[,'elt-2_LE_1']
 L1 = mx[,'elt-2_L1_1']
@@ -171,6 +290,7 @@ L3 = mx[,'elt-2_L3_1']
 elt2_anytime = LE | L1 | L3 
 cat("ELT-2 binds", sum(elt2_anytime), "genes in any of the three stages.")
 ```
+
 
 ```{r heatmap-ELT-2}
 system.time({
@@ -196,7 +316,7 @@ hm.elt2.binding = Heatmap(mx,
         use_raster = T)
 })
 # print(hm.elt2.binding)
-pdf(file=format(Sys.time(), "plots/%Y-%m-%d-%H-%M-heatmap-elt2-binding.pdf"), 
+pdf(file=format(Sys.time(), "plots/heatmap-elt2-binding-%Y-%m-%d-%H-%M.pdf"), 
     width=60, height=20)
 hm.elt2.binding
 dev.off()
@@ -318,7 +438,7 @@ hm.states = Heatmap(mx,
         column_names_side = "top",
         use_raster = T)
 
-pdf(file=format(Sys.time(), "plots/%Y-%m-%d-%H-%M-heatmap-states-labeled.pdf"), 
+pdf(file=format(Sys.time(), "plots/heatmap-states-labeled-%Y-%m-%d-%H-%M.pdf"), 
     width=60, height=20)
 hm.states
 dev.off()
@@ -424,7 +544,7 @@ hm.states.clustered = Heatmap(mx,
         column_names_side = "top",
         use_raster = T)
 
-pdf(file=format(Sys.time(), "plots/%Y-%m-%d-%H-%M-heatmap-states-clustered.pdf"), 
+pdf(file=format(Sys.time(), "plots/heatmap-states-clustered-%Y-%m-%d-%H-%M.pdf"), 
     width=50, height=20)
 hm.states.clustered
 dev.off()
