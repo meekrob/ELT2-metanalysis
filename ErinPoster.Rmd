@@ -15,6 +15,16 @@ library(RMariaDB)
 library(R.cache)
 library(magrittr)
 library(stringr)
+library('randomForest')
+
+sort_hc_by_svd = function(hc, mat, which.vec=1){
+    sv = svd(t(mat))$v[,which.vec]
+    dend = reorder(as.dendrogram(hc), wts = sv^2)
+    sorted.hc = as.hclust(dend)
+    sorted.hc$distance.method = hc$distance.method
+    sorted.hc$method = hc$method
+    sorted.hc
+}
 
 # for distances between rows/columns in a binary matrix
 cosine.dist = function(df) { 
@@ -117,6 +127,20 @@ system.time({embryo.hc.mx.cols = hclust(embryo.eu.mx.col, method = "average")})
   #  user  system elapsed 
   # 0.005   0.001   0.006
 ```
+```{r embryo square heatmap}
+embryo.eu.mx.col.mat = as.matrix(embryo.eu.mx.col)
+hm=Heatmap(embryo.eu.mx.col.mat, 
+           cluster_rows = embryo.hc.mx.cols, 
+           cluster_columns = embryo.hc.mx.cols,
+           heatmap_legend_param = list(title = "euclidean distance"))
+```
+
+```{r save embryo sq heatmap}
+pdf(file=format(Sys.time(), "plots/embryo-square-heatmap-%Y-%m-%d-%H-%M.pdf"), 
+    width=50, height=50)
+hm
+dev.off()
+```
 
 ```{r cosine distance}
 system.time({cos.mx.row = cosine.dist(mx)})
@@ -165,12 +189,13 @@ plot(1:length(embryo.hc.mx.cosine.rows$height),rev(embryo.hc.mx.cosine.rows$heig
 #plot(1:length(hc.mx.cosine.cols$height),rev(hc.mx.cosine.cols$height),  xlim=c(0,50), main="scree for cosine columns")
 ```
 
-```{r}
+```{r all cos and euclidean}
 
 hmColors = c('#FFFFCC',  '#68001C')
 
 hm.euclidean = Heatmap(mx, 
         cluster_rows = hc.mx.rows, 
+        #cluster_columns = sort_hc_by_svd(hc.mx.cols, t(mx), 2), 
         cluster_columns = hc.mx.cols, 
         heatmap_legend_param = list(title = "euclidean\nTF bound/unbound"),
         show_heatmap_legend = FALSE,
@@ -186,7 +211,8 @@ hm.euclidean = Heatmap(mx,
 
 hm.cosine = Heatmap(mx, 
         cluster_rows = hc.mx.cosine.rows, 
-        cluster_columns = hc.mx.cosine.cols, 
+        #cluster_columns = sort_hc_by_svd(hc.mx.cosine.cols,t(mx), 2), 
+        cluster_columns = hc.mx.cosine.cols,
         heatmap_legend_param = list(title = "cosine\nTF bound/unbound"),
         show_heatmap_legend = FALSE,
         show_row_names = FALSE, 
@@ -207,16 +233,17 @@ system.time(print(hm.cosine))
  # 12.657   2.282  14.993 
 
 
-pdf(file=format(Sys.time(), "plots/all-heatmap-euc-%Y-%m-%d.pdf"), 
+pdf(file=format(Sys.time(), "plots/all-heatmap-euc-%Y-%m-%d-%H-%M.pdf"), 
     width=60, height=20)
 hm.euclidean
 dev.off()
 
-pdf(file=format(Sys.time(), "plots/all-heatmap-cos-%Y-%m-%d.pdf"), 
+pdf(file=format(Sys.time(), "plots/all-heatmap-cos-%Y-%m-%d-%H-%M.pdf"), 
     width=60, height=20)
 hm.cosine
 dev.off()
 ```
+
 ```{r embryo Heatmaps}
 hmColors = c('#FFFFCC',  '#68001C')
 
@@ -248,37 +275,181 @@ embryo.mx.noELT2 = embryo.mx[,-which(colnames(embryo.mx) == 'elt-2_LE_1')]
 
 dex = dist(t(embryo.mx.noELT2))
 hc_cols = hclust(dex, method = "average")
-function(hc, mat){
-    sv = svd(t(mat))$v[,c(2)]
-    dend = reorder(as.dendrogram(hc), wts = sv^2)
-    as.hclust(dend)
-}
 
-hc_cols_svd = callback(hc_cols, t(embryo.mx.noELT2))
-# restore these two fields
-hc_cols_svd$dist.method = hc_cols$dist.method
-hc_cols_svd$method = hc_cols$method
+
+num_binding = colSums(embryo.mx)[-which(colnames(embryo.mx) == 'elt-2_LE_1')]
+q_num_binding = quantile(num_binding)
+ecdf_num_binding = ecdf(num_binding)(num_binding)
+
+#hc_cols_svd = sort_hc_by_svd(hc_cols, t(embryo.mx.noELT2), 2)
+#min_binding_threshold = q_num_binding['50%']
+min_binding_threshold = 0
+
 
 system.time({
-hm.embryo.elt2.binding = Heatmap(embryo.mx.noELT2, 
+hm.embryo.elt2.binding = Heatmap(embryo.mx.noELT2[,num_binding>min_binding_threshold], 
         clustering_method_rows = "average",
-        cluster_columns = hc_cols_svd,
+        cluster_columns = sort_hc_by_svd(hclust(dist(t(embryo.mx.noELT2[,num_binding>min_binding_threshold])), 
+                                                method = "average"), 
+                                         t(embryo.mx.noELT2[,num_binding>min_binding_threshold]), 2),
         heatmap_legend_param = list(title = "euclidean\nTF bound/unbound"),
         show_heatmap_legend = FALSE,
         show_row_names = FALSE, 
-        show_column_names = T, 
+        show_column_names = FALSE, 
         show_row_dend = F,
         show_column_dend = T,
         col = hmColors,
         row_split = ifelse(embryo.ELT2bound, "ELT-2 bound", "ELT-2 never bound"),
         column_split = 7,
         column_names_side = "top",
-        use_raster = T)
+        use_raster = T,
+        
+        ### comment out this annotation to hide num_binding highlights (but restore show_column_names)
+        # top_annotation = HeatmapAnnotation(
+        #   labs = anno_text(colnames(embryo.mx.noELT2)[num_binding>min_binding_threshold],
+        #                    gp = gpar(col=ifelse(num_binding>q_num_binding['50%'], 
+        #                                         'black', 
+        #                                         'grey'))),
+        #   numGenesBound = anno_barplot(num_binding[num_binding>min_binding_threshold]))
+        ###
+        )
 })
-# print(hm.elt2.binding)
+
 pdf(file=format(Sys.time(), "plots/heatmap-embryo-elt2-binding-%Y-%m-%d-%H-%M.pdf"), 
-    width=60, height=20)
+    width=60, height=20, family = "ArialMT")
 hm.embryo.elt2.binding
+dev.off()
+```
+
+```{r embryo heatmap subset}
+embryo.ELT2bound = embryo.mx[,'elt-2_LE_1']
+embryo.mx.noELT2 = embryo.mx[,-which(colnames(embryo.mx) == 'elt-2_LE_1')]
+
+### deal with some long column names
+cc = colnames(embryo.mx.noELT2)
+cc[cc == 'W03F9.2_L4+yAd_1'] = 'W03F9.2_L4_1'
+names_to_plot = sub('_[0-9]+$', '',cc) # remove last _[0-9]. 
+                                       # The names are not unique
+                                       # so must be plotted separately (can't be non-unique colnames)
+
+
+
+# get the spread of gene binding totals
+num_binding = colSums(embryo.mx)[-which(colnames(embryo.mx) == 'elt-2_LE_1')]
+q_num_binding = quantile(num_binding)
+ecdf_num_binding = ecdf(num_binding)(num_binding)
+# apply threshold
+min_binding_threshold = q_num_binding['75%']
+reduced.mx = embryo.mx.noELT2[,num_binding>min_binding_threshold]
+# compute dist and clustering
+dex = dist(t(reduced.mx))
+
+hc_cols = sort_hc_by_svd(hclust(dex, method = "complete"), 
+                         t(reduced.mx), 2)
+```
+
+
+
+
+```{r}
+
+lvls=c("ELT-2 embryo bound", "ELT-2 not bound in embryo")
+elt2_row_order = factor(ifelse(embryo.ELT2bound, lvls[1],lvls[2]),
+                        levels=rev(lvls))
+
+# plot primary reduced heatmap
+hm.embryo.elt2.binding.subset = 
+  Heatmap(name = "transcription factor binding profile", reduced.mx, 
+        clustering_method_rows = "average",
+        cluster_columns = hc_cols,
+        heatmap_legend_param = list(title = "TF bound/unbound"),
+        show_heatmap_legend = T,
+        show_row_names = FALSE, 
+        show_column_names = F, 
+        show_row_dend = F,
+        show_column_dend = T,
+        col = hmColors,
+        row_split = elt2_row_order,
+        row_title="Intestine present genes",
+        column_title="TFs binding >164 intestine present genes",
+        column_split = 7,
+        column_names_side = "top",
+        height=unit(7, "inches"),
+        top_annotation = HeatmapAnnotation(
+          labs = anno_text(names_to_plot[num_binding>min_binding_threshold],
+                           just=0, location=0, gp = gpar(fontfamily="Courier"))
+          
+          ),
+        use_raster = T
+        )
+        # print(
+        #   draw(hm.embryo.elt2.binding.subset, 
+        #        column_title="TFs binding >164 intestine present genes",
+        #        column_title_gp = gpar(fontsize = 18, fontfamily="ArialMT"))
+        #   )
+pdf(file=format(Sys.time(), "plots/subset-embryo-elt2-binding-%Y-%m-%d-%H-%M.pdf"), 
+    width=20, height=20, family = "ArialMT")
+
+hm.embryo.elt2.binding.subset
+dev.off()
+```
+
+
+```{r}
+# square
+dex.asmx = as.matrix(dex)
+hm_reduced_square_embryo = Heatmap(column_title = "TF similarity", 
+                                   row_title = "TF similarity", 
+                                   dex.asmx,
+           cluster_rows = hc_cols, 
+           cluster_columns = hc_cols,
+           column_split = 7,
+           row_split = 7,
+           show_row_names = FALSE, 
+           show_column_names = F,
+           height=unit(10, "inches"),
+            top_annotation = HeatmapAnnotation(
+          labs = anno_text(names_to_plot[num_binding>min_binding_threshold],
+                           just=0, location=0, gp = gpar(fontfamily="Courier"))
+          
+          ),
+           heatmap_legend_param = list(title = "euclidean distance"))
+pdf(file=format(Sys.time(), "plots/subset-embryo-square-%Y-%m-%d-%H-%M.pdf"), 
+    width=20, height=25, family = "ArialMT")
+draw(
+hm.embryo.elt2.binding.subset %v% hm_reduced_square_embryo,
+column_title="modENCODE TF binding of intestine present genes")
+dev.off()
+```
+
+```{r}
+euclidean.dex = dist(t(reduced.mx))
+cos.dex = cosine.dist(t(reduced.mx))
+hc_cosine = sort_hc_by_svd(hclust(cos.dex, method = "ward.D2"), 
+                         t(reduced.mx), 2)
+hc_euclidean = sort_hc_by_svd(hclust(euclidean.dex, method = "ward.D2"), 
+                         t(reduced.mx), 2)
+# square
+cos.dmx = as.matrix(cos.dex)
+scaled.euclidean.dex = ((euclidean.dex) - min(euclidean.dex))/diff(range(euclidean.dex))
+#euclidean.dmx = as.matrix(scaled.euclidean.dex) # make euclidean.dmx from 0 to 1
+euclidean.dmx = as.matrix(euclidean.dex)
+
+# smashed: lower tri = euclidean, upper tri = cos
+# smashed.dmx = cos.dmx
+# smashed.dmx[lower.tri(smashed.dmx)] = euclidean.dmx[lower.tri(euclidean.dmx)]
+
+hm_reduced_square_embryo = Heatmap(euclidean.dmx,
+           cluster_rows = hc_euclidean,
+           cluster_columns = hc_euclidean,
+           heatmap_legend_param = list(title = "euclidean distance"),
+           column_names_side = "top",
+           row_names_side = "left",
+           column_split = 7,
+           row_split = 7)
+pdf(file=format(Sys.time(), "plots/subset-embryo-square-%Y-%m-%d-%H-%M.pdf"), 
+    width=60, height=60, family = "ArialMT")
+hm_reduced_square_embryo
 dev.off()
 ```
 
@@ -293,7 +464,7 @@ cat("ELT-2 binds", sum(elt2_anytime), "genes in any of the three stages.")
 
 
 ```{r heatmap-ELT-2}
-system.time({
+
 hm.elt2.binding = Heatmap(mx, 
         clustering_method_rows = "average",
         clustering_method_columns = "average",
@@ -313,8 +484,8 @@ hm.elt2.binding = Heatmap(mx,
         row_split = ifelse(elt2_anytime, "ELT-2 bound", "ELT-2 never bound"),
         column_split = 5,
         column_names_side = "top",
-        use_raster = T)
-})
+        use_raster = T
+)
 # print(hm.elt2.binding)
 pdf(file=format(Sys.time(), "plots/heatmap-elt2-binding-%Y-%m-%d-%H-%M.pdf"), 
     width=60, height=20)
@@ -673,7 +844,7 @@ legend(0.8, 0.2, legend = c("cv_model1", "cv_model2"),
 ```
 
 ```{r random forests}
-library('randomForest')
+
 binaryClassifier = randomForest(y=dmx$elt2.status,x=dmx %>% select(-elt2.status), ntrees=2000, sampsize=c(60,60), importance = T)
 binaryClassifier$confusion
 as.data.frame(round(importance(binaryClassifier),2)) %>% arrange(-MeanDecreaseAccuracy) %>% head(20)
